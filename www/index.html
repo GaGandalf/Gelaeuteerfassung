@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f6f62">
+<meta name="description" content="Glocken nach dem Factsheet erfassen, zu Geläuten zusammenstellen und als Glockendaten-Excel exportieren.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Geläut">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Geläut-Erfassung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Seitenleiste mit gespeicherten Geläuten | Arbeitsfläche mit Geläut-Kopf, Glocken-Reitern, Factsheet und Übersicht */
+:root {
+  --bg: #f3f4f2;
+  --panel: #ffffff;
+  --ink: #1d2422;
+  --muted: #5e6a66;
+  --line: #d9ddd9;
+  --soft: #e9ece9;
+  --bronze: #8a5a1f;
+  --bronze-soft: #f3e7d6;
+  --patina: #2f6f62;
+  --patina-soft: #dcefe9;
+  --warn: #a2401f;
+  --warn-soft: #f8e1d8;
+  --input: #fbfbfa;
+  --f-display: "Spectral", Georgia, "Times New Roman", serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141917; --panel: #1c2220; --ink: #e5e9e6; --muted: #9aa6a1; --line: #303a37; --soft: #252d2a;
+    --bronze: #d9a35c; --bronze-soft: #3a2c19; --patina: #6cc2ae; --patina-soft: #1d3530;
+    --warn: #f0906b; --warn-soft: #3d231a; --input: #171c1a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141917; --panel: #1c2220; --ink: #e5e9e6; --muted: #9aa6a1; --line: #303a37; --soft: #252d2a;
+  --bronze: #d9a35c; --bronze-soft: #3a2c19; --patina: #6cc2ae; --patina-soft: #1d3530;
+  --warn: #f0906b; --warn-soft: #3d231a; --input: #171c1a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 40px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; letter-spacing: .01em; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
+.eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--patina); outline-offset: 2px; }
+
+.top { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.top p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+.store-pill { font-size: .78rem; padding: 4px 10px; border-radius: 99px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+.store-pill.ok { background: var(--patina-soft); color: var(--patina); }
+.store-pill.warn { background: var(--warn-soft); color: var(--warn); }
+
+.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+.pad { padding: 16px; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.stack > *, .layout > * { min-width: 0; }
+[hidden] { display: none !important; }
+
+/* Seitenleiste */
+.side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 900px) { .side { position: static; } }
+.side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.saved-list { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; max-height: 60vh; overflow: auto; }
+.saved-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-radius: 5px; }
+.saved-list li.active { background: var(--bronze-soft); }
+.saved-open { text-align: left; background: none; border: 0; padding: 8px 10px; min-width: 0; border-radius: 5px; }
+.saved-open:hover { background: var(--soft); }
+.saved-list li.active .saved-open:hover { background: transparent; }
+.saved-open strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.saved-open span { font-size: .78rem; color: var(--muted); }
+.empty { padding: 14px 16px 18px; color: var(--muted); font-size: .88rem; }
+.side-foot { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Buttons */
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 7px 12px; font-weight: 500; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--patina); border-color: var(--patina); color: var(--panel); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.bronze { background: var(--bronze); border-color: var(--bronze); color: var(--panel); }
+.btn.small { padding: 4px 9px; font-size: .82rem; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--ink); background: var(--soft); }
+.btn.danger { color: var(--warn); }
+.btn.danger.armed { background: var(--warn); border-color: var(--warn); color: var(--panel); }
+.btn:disabled { opacity: .45; cursor: default; }
+.icon-btn { border: 0; background: none; color: var(--muted); padding: 6px 8px; border-radius: 5px; font-size: .8rem; }
+.icon-btn:hover { background: var(--soft); color: var(--warn); }
+.icon-btn.armed { background: var(--warn); color: var(--panel); }
+
+/* Formulare */
+label.f { display: grid; gap: 4px; min-width: 0; }
+label.f > span { font-size: .78rem; color: var(--muted); font-weight: 500; }
+.in { width: 100%; border: 1px solid var(--line); background: var(--input); border-radius: 5px; padding: 7px 9px; min-width: 0; }
+.in:hover { border-color: var(--muted); }
+.in:focus { border-color: var(--patina); outline: none; box-shadow: 0 0 0 3px var(--patina-soft); }
+.unit { position: relative; }
+.unit .in { padding-right: 38px; }
+.unit em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: .8rem; pointer-events: none; }
+
+.ghead { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 120px; gap: 12px; }
+@media (max-width: 640px) { .ghead { grid-template-columns: minmax(0, 1fr); } }
+.gactions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.gactions .grow { flex: 1; }
+.status { font-size: .84rem; color: var(--muted); }
+.status.dirty { color: var(--bronze); font-weight: 600; }
+.status.err { color: var(--warn); font-weight: 600; }
+.banner { background: var(--bronze-soft); color: var(--ink); border-radius: var(--r); padding: 10px 14px; font-size: .88rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+
+/* Glocken-Reiter */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tab { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 6px 12px; display: flex; gap: 8px; align-items: baseline; max-width: 240px; }
+.tab b { font-family: var(--f-mono); font-weight: 500; color: var(--muted); font-size: .8rem; }
+.tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab small { font-family: var(--f-mono); color: var(--bronze); font-size: .78rem; }
+.tab[aria-selected="true"] { border-color: var(--bronze); background: var(--bronze-soft); }
+.tab.add { border-style: dashed; color: var(--muted); }
+
+/* Factsheet */
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.sheet-head .tools { display: flex; gap: 4px; flex-wrap: wrap; }
+.sec { padding: 16px; border-bottom: 1px solid var(--line); }
+.sec:last-child { border-bottom: 0; }
+.sec > h3 { margin-bottom: 12px; display: flex; gap: 10px; align-items: baseline; }
+.sec > h3 small { font-family: var(--f-body); font-weight: 400; color: var(--muted); font-size: .8rem; }
+.grid-eck { display: grid; grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .grid-eck { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid-eck .wide { grid-column: 1 / -1; } }
+
+.tscroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+.pt { min-width: 760px; }
+.pt th, .pt td { padding: 6px 8px; border-bottom: 1px solid var(--soft); text-align: left; white-space: nowrap; }
+.pt thead th { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); vertical-align: bottom; }
+.pt td.n, .pt th.n { text-align: right; }
+.pt tbody th { font-weight: 600; }
+.pt tr.nom { background: var(--bronze-soft); }
+.pt tr.nom th { color: var(--bronze); }
+.pt .in { width: 118px; text-align: right; font-family: var(--f-mono); padding: 5px 8px; }
+.ton { font-family: var(--f-mono); font-weight: 500; }
+.dim { color: var(--muted); }
+.dev { font-family: var(--f-mono); font-size: .82rem; padding: 2px 7px; border-radius: 99px; display: inline-block; min-width: 46px; text-align: center; }
+.dev.z { background: var(--patina-soft); color: var(--patina); }
+.dev.s { background: var(--soft); color: var(--ink); }
+.dev.l { background: var(--warn-soft); color: var(--warn); }
+@media (max-width: 640px) {
+  .pt { min-width: 0; }
+  .pt .c-bez, .pt .c-rhz, .pt .c-rt { display: none; }
+  .pt .mref { display: block !important; }
+  .pt tbody th { white-space: normal; }
+  .pt th small { font-size: .64rem; }
+  .pt th, .pt td { padding: 6px 4px; }
+  .pt .in { width: 80px; }
+  .dev { min-width: 32px; padding: 2px 5px; }
+  .pt thead th { font-size: .66rem; letter-spacing: .03em; white-space: normal; }
+  .ton { font-size: .84rem; }
+  .sheet-head .tools .btn { padding: 4px 6px; }
+  .gactions .btn { flex: 1 1 140px; }
+}
+.pt .mref { display: none; font-family: var(--f-mono); font-size: .72rem; color: var(--muted); font-weight: 400; }
+.pt th small { display: block; font-weight: 400; font-size: .7rem; color: var(--muted); }
+.hint { font-size: .8rem; color: var(--muted); margin: 10px 0 0; max-width: 80ch; }
+
+.rip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .rip { grid-template-columns: minmax(0, 1fr); } }
+.rip-in { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: baseline; margin-top: 14px; grid-column: 1 / -1; }
+.kv dt { color: var(--muted); font-size: .84rem; }
+.kv dd { margin: 0; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.kv dd strong { font-size: 1.05rem; }
+.scale { margin-top: 6px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; grid-column: 1 / -1; }
+.scale div { font-size: .7rem; text-align: center; padding: 5px 2px; background: var(--soft); color: var(--muted); border-radius: 3px; }
+.scale div.on { background: var(--bronze); color: var(--panel); font-weight: 600; }
+.wr th, .wr td { padding: 6px 8px; border-bottom: 1px solid var(--soft); }
+.wr td.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.wr tr.mid td { font-weight: 600; }
+.wr caption { text-align: left; font-size: .78rem; color: var(--muted); padding-bottom: 6px; font-weight: 500; }
+
+/* Übersicht */
+.ov { min-width: 520px; }
+.ov th, .ov td { padding: 6px 10px; border-bottom: 1px solid var(--soft); text-align: center; white-space: nowrap; }
+.ov thead th { border-bottom: 1px solid var(--line); font-family: var(--f-mono); font-weight: 500; color: var(--muted); }
+.ov tbody th { text-align: left; font-weight: 500; color: var(--muted); }
+.ov tr.nom td, .ov tr.nom th { font-weight: 700; color: var(--ink); }
+.ov td { font-family: var(--f-mono); font-size: .86rem; }
+.ov td.txt { font-family: var(--f-body); font-size: .9rem; }
+.ov-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 5px 10px; font-size: .82rem; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--patina-soft); color: var(--patina); font-weight: 600; }
+
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 6px; font-size: .88rem; z-index: 10; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: up .18s ease-out; } @keyframes up { from { transform: translate(-50%, 8px); opacity: 0; } } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">Factsheet Glocken · Geläute</div>
+      <h1>Geläut-Erfassung</h1>
+      <p>Glocken nach dem Factsheet erfassen, zu einem Geläut zusammenstellen, speichern und als „Glockendaten“-Excel exportieren.</p>
+    </div>
+    <span id="storePill" class="store-pill">Speicher wird verbunden …</span>
+  </div>
+
+  <div class="layout">
+    <aside class="side panel" aria-label="Gespeicherte Geläute">
+      <div class="side-head">
+        <h2>Geläute</h2>
+        <button class="btn small" id="btnNew" type="button">+ Neues Geläut</button>
+      </div>
+      <ul class="saved-list" id="savedList"></ul>
+      <div class="empty" id="savedEmpty">Noch keine Geläute gespeichert. Erfassen Sie rechts ein Geläut und klicken Sie auf „Geläut speichern“.</div>
+      <div class="side-foot">
+        <button class="btn small ghost" id="btnJsonOut" type="button">Als JSON sichern</button>
+        <label class="btn small ghost" for="jsonIn">JSON laden</label>
+        <input id="jsonIn" type="file" accept=".json,application/json" class="sr">
+      </div>
+    </aside>
+
+    <main class="stack">
+      <div id="demoBanner" class="banner" hidden>
+        <span>Beispieldaten mit drei Glocken, damit Sie sehen, wie die Maske rechnet. Überschreiben Sie die Werte oder beginnen Sie ein neues Geläut.</span>
+        <button class="btn small" id="btnDemoClear" type="button">Leeres Geläut beginnen</button>
+      </div>
+
+      <section class="panel pad" aria-label="Geläut">
+        <div class="ghead">
+          <label class="f"><span>Name des Geläuts</span><input class="in" id="gName" placeholder="z. B. Pfarrkirche St. Martin"></label>
+          <label class="f"><span>Ort / Kirche</span><input class="in" id="gOrt" placeholder="z. B. Altdorf UR"></label>
+          <label class="f"><span>Stimmton a′</span>
+            <select class="in" id="gA1"><option value="435">435 Hz</option><option value="440">440 Hz</option></select>
+          </label>
+        </div>
+        <div class="gactions">
+          <button class="btn primary" id="btnSave" type="button">Geläut speichern</button>
+          <button class="btn bronze" id="btnExport" type="button">Excel exportieren</button>
+          <span class="grow"></span>
+          <span id="status" class="status"></span>
+        </div>
+      </section>
+
+      <div class="tabs" role="tablist" id="tabs" aria-label="Glocken im Geläut"></div>
+
+      <section class="panel" id="sheet" aria-label="Factsheet der Glocke">
+        <div class="sheet-head">
+          <div>
+            <div class="eyebrow" id="bellNo">Glocke 1</div>
+            <h2 id="bellTitle">Name der Glocke</h2>
+          </div>
+          <div class="tools">
+            <button class="btn small ghost" id="btnLeft" type="button" title="Glocke nach links verschieben">← Verschieben</button>
+            <button class="btn small ghost" id="btnRight" type="button" title="Glocke nach rechts verschieben">Verschieben →</button>
+            <button class="btn small ghost" id="btnDup" type="button">Duplizieren</button>
+            <button class="btn small danger" id="btnDel" type="button">Glocke entfernen</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>Eckdaten</h3>
+          <div class="grid-eck">
+            <label class="f wide"><span>Name der Glocke</span><input class="in" id="b_name" data-k="name" placeholder="z. B. Christusglocke"></label>
+            <label class="f"><span>Gussjahr</span><input class="in mono" id="b_gussjahr" data-k="gussjahr" inputmode="numeric" placeholder="1898"></label>
+            <label class="f wide"><span>Giesser</span><input class="in" id="b_giesser" data-k="giesser" placeholder="z. B. Rüetschi, Aarau"></label>
+            <label class="f"><span>Durchmesser</span><span class="unit"><input class="in mono" id="b_durchmesser" data-k="durchmesser" inputmode="decimal" placeholder="1110"><em>mm</em></span></label>
+            <label class="f"><span>Gewicht (falls bekannt)</span><span class="unit"><input class="in mono" id="b_gewicht" data-k="gewicht" inputmode="decimal" placeholder="—"><em>kg</em></span></label>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>Teiltöne <small>gemessene Frequenzen in Hz; der Nominal wird aus der Oktave abgeleitet</small></h3>
+          <div class="tscroll">
+            <table class="pt">
+              <thead>
+                <tr>
+                  <th>Teilton</th><th class="n">Frequenz [Hz]</th><th class="n c-bez">Bezugsfrequenz [Hz]</th><th>Ton</th>
+                  <th class="c-rt">Referenz (Molloktavglocke)</th><th class="n c-rhz">Referenz [Hz]</th><th class="n" title="Abweichung zur Referenz in 1/16-Halbtönen">Abw. [1/16]</th>
+                </tr>
+              </thead>
+              <tbody id="ptBody"></tbody>
+            </table>
+          </div>
+          <p class="hint">Töne in 1/16-Halbtonschritten nach der Frequenztabelle des Factsheets (a′ = Stimmton oben). „Abw.“ zeigt, wie weit der gemessene Teilton über (+) oder unter (−) dem Referenzton der Molloktavglocke liegt.</p>
+        </div>
+
+        <div class="sec">
+          <h3>Rippe</h3>
+          <div class="rip">
+            <div class="rip-in">
+              <label class="f"><span>Schlagton</span><select class="in" id="b_schlagton" data-k="schlagton"></select></label>
+              <label class="f"><span>I (Korrektur)</span>
+                <select class="in" id="b_korrektur" data-k="korrektur"><option value="1">1 – Bronze</option><option value="0.95">0.95 – Sonderbronze</option><option value="0.65">0.65 – Stahl</option></select>
+              </label>
+              <p class="hint" style="grid-column:1/-1;margin:0">I (Korrektur) ist der Materialfaktor gemäss Factsheet: 1 = Bronze, 0.95 = Sonderbronze, 0.65 = Stahl.</p>
+              <dl class="kv">
+                <dt>RS</dt><dd id="o_rs">—</dd>
+                <dt>Rippe</dt><dd id="o_klasse">—</dd>
+                <dt>~ Gewicht nach Rippentabelle</dt><dd id="o_ripkg">—</dd>
+              </dl>
+              <div class="scale" id="o_scale" aria-hidden="true">
+                <div>sehr leicht<br>&lt; −6</div><div>leicht<br>−6 … 0</div><div>mittel<br>0 … 6</div><div>schwer<br>6 … 12</div><div>sehr schwer<br>&gt; 12</div>
+              </div>
+            </div>
+            <div class="tscroll">
+              <table class="wr">
+                <caption>Gewichtsrange (11.42 · D<sup>11/3</sup> · f<sub>Nominal</sub><sup>2/3</sup>)</caption>
+                <tbody id="o_range"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel pad" aria-label="Geläut-Übersicht">
+        <div class="ov-head">
+          <div>
+            <h2>Glockendaten</h2>
+            <div class="eyebrow" id="ovA1">a′ = 435 Hz</div>
+          </div>
+          <div>
+            <span class="eyebrow" style="margin-right:6px">Teiltöne exportieren als</span>
+            <span class="seg" id="modeSeg">
+              <button type="button" data-mode="ton" aria-pressed="true">Ton</button>
+              <button type="button" data-mode="hz" aria-pressed="false">Hz</button>
+              <button type="button" data-mode="beides" aria-pressed="false">Ton (Hz)</button>
+            </span>
+          </div>
+        </div>
+        <div class="tscroll"><table class="ov" id="ovTable"></table></div>
+        <p class="hint">So wird das Geläut in die Vorlage „Glockendaten_Basis“ geschrieben. Mehr als fünf Glocken erweitern die Tabelle um zusätzliche Spalten.</p>
+      </section>
+    </main>
+  </div>
+</div>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script src="jszip.min.js"></script>
+<script>
+const DATA = {"tones":["c5","c5 -1","c5 -2","c5 -3","c5 -4","c5 -5","c5 -6","c5 -7","c5 -8 ; h4 +8","h4 +7","h4 +6","h4 +5","h4 +4","h4 +3","h4 +2","h4 +1","h4","h4 -1","h4 -2","h4 -3","h4 -4","h4 -5","h4 -6","h4 -7","h4 -8 ; ais4/b4 +8","ais4/b4 +7","ais4/b4 +6","ais4/b4 +5","ais4/b4 +4","ais4/b4 +3","ais4/b4 +2","ais4/b4 +1","ais4/b4","ais4/b4 -1","ais4/b4 -2","ais4/b4 -3","ais4/b4 -4","ais4/b4 -5","ais4/b4 -6","ais4/b4 -7","ais4/b4 -8 ; a4 +8","a4 +7","a4 +6","a4 +5","a4 +4","a4 +3","a4 +2","a4 +1","a4","a4 -1","a4 -2","a4 -3","a4 -4","a4 -5","a4 -6","a4 -7","a4 -8 ; gis4/as4 +8","gis4/as4 +7","gis4/as4 +6","gis4/as4 +5","gis4/as4 +4","gis4/as4 +3","gis4/as4 +2","gis4/as4 +1","gis4/as4","gis4/as4 -1","gis4/as4 -2","gis4/as4 -3","gis4/as4 -4","gis4/as4 -5","gis4/as4 -6","gis4/as4 -7","gis4/as4 -8 ; g4 +8","g4 +7","g4 +6","g4 +5","g4 +4","g4 +3","g4 +2","g4 +1","g4","g4 -1","g4 -2","g4 -3","g4 -4","g4 -5","g4 -6","g4 -7","g4 -8 ; fis4/ges4 +8","fis4/ges4 +7","fis4/ges4 +6","fis4/ges4 +5","fis4/ges4 +4","fis4/ges4 +3","fis4/ges4 +2","fis4/ges4 +1","fis4/ges4","fis4/ges4 -1","fis4/ges4 -2","fis4/ges4 -3","fis4/ges4 -4","fis4/ges4 -5","fis4/ges4 -6","fis4/ges4 -7","fis4/ges4 -8 ; f4 +8","f4 +7","f4 +6","f4 +5","f4 +4","f4 +3","f4 +2","f4 +1","f4","f4 -1","f4 -2","f4 -3","f4 -4","f4 -5","f4 -6","f4 -7","f4 -8 ; e4 +8","e4 +7","e4 +6","e4 +5","e4 +4","e4 +3","e4 +2","e4 +1","e4","e4 -1","e4 -2","e4 -3","e4 -4","e4 -5","e4 -6","e4 -7","e4 -8 ; dis4/es4 +8","dis4/es4 +7","dis4/es4 +6","dis4/es4 +5","dis4/es4 +4","dis4/es4 +3","dis4/es4 +2","dis4/es4 +1","dis4/es4","dis4/es4 -1","dis4/es4 -2","dis4/es4 -3","dis4/es4 -4","dis4/es4 -5","dis4/es4 -6","dis4/es4 -7","dis4/es4 -8 ; d4 +8","d4 +7","d4 +6","d4 +5","d4 +4","d4 +3","d4 +2","d4 +1","d4","d4 -1","d4 -2","d4 -3","d4 -4","d4 -5","d4 -6","d4 -7","d4 -8 ; cis4/des4 +8","cis4/des4 +7","cis4/des4 +6","cis4/des4 +5","cis4/des4 +4","cis4/des4 +3","cis4/des4 +2","cis4/des4 +1","cis4/des4","cis4/des4 -1","cis4/des4 -2","cis4/des4 -3","cis4/des4 -4","cis4/des4 -5","cis4/des4 -6","cis4/des4 -7","cis4/des4 -8 ; c4 +8","c4 +7","c4 +6","c4 +5","c4 +4","c4 +3","c4 +2","c4 +1","c4","c4 -1","c4 -2","c4 -3","c4 -4","c4 -5","c4 -6","c4 -7","c4 -8 ; h3 +8","h3 +7","h3 +6","h3 +5","h3 +4","h3 +3","h3 +2","h3 +1","h3","h3 -1","h3 -2","h3 -3","h3 -4","h3 -5","h3 -6","h3 -7","h3 -8 ; ais3/b3 +8","ais3/b3 +7","ais3/b3 +6","ais3/b3 +5","ais3/b3 +4","ais3/b3 +3","ais3/b3 +2","ais3/b3 +1","ais3/b3","ais3/b3 -1","ais3/b3 -2","ais3/b3 -3","ais3/b3 -4","ais3/b3 -5","ais3/b3 -6","ais3/b3 -7","ais3/b3 -8 ; a3 +8","a3 +7","a3 +6","a3 +5","a3 +4","a3 +3","a3 +2","a3 +1","a3","a3 -1","a3 -2","a3 -3","a3 -4","a3 -5","a3 -6","a3 -7","a3 -8 ; gis3/as3 +8","gis3/as3 +7","gis3/as3 +6","gis3/as3 +5","gis3/as3 +4","gis3/as3 +3","gis3/as3 +2","gis3/as3 +1","gis3/as3","gis3/as3 -1","gis3/as3 -2","gis3/as3 -3","gis3/as3 -4","gis3/as3 -5","gis3/as3 -6","gis3/as3 -7","gis3/as3 -8 ; g3 +8","g3 +7","g3 +6","g3 +5","g3 +4","g3 +3","g3 +2","g3 +1","g3","g3 -1","g3 -2","g3 -3","g3 -4","g3 -5","g3 -6","g3 -7","g3 -8 ; fis3/ges3 +8","fis3/ges3 +7","fis3/ges3 +6","fis3/ges3 +5","fis3/ges3 +4","fis3/ges3 +3","fis3/ges3 +2","fis3/ges3 +1","fis3/ges3","fis3/ges3 -1","fis3/ges3 -2","fis3/ges3 -3","fis3/ges3 -4","fis3/ges3 -5","fis3/ges3 -6","fis3/ges3 -7","fis3/ges3 -8 ; f3 +8","f3 +7","f3 +6","f3 +5","f3 +4","f3 +3","f3 +2","f3 +1","f3","f3 -1","f3 -2","f3 -3","f3 -4","f3 -5","f3 -6","f3 -7","f3 -8 ; e3 +8","e3 +7","e3 +6","e3 +5","e3 +4","e3 +3","e3 +2","e3 +1","e3","e3 -1","e3 -2","e3 -3","e3 -4","e3 -5","e3 -6","e3 -7","e3 -8 ; dis3/es3 +8","dis3/es3 +7","dis3/es3 +6","dis3/es3 +5","dis3/es3 +4","dis3/es3 +3","dis3/es3 +2","dis3/es3 +1","dis3/es3","dis3/es3 -1","dis3/es3 -2","dis3/es3 -3","dis3/es3 -4","dis3/es3 -5","dis3/es3 -6","dis3/es3 -7","dis3/es3 -8 ; d3 +8","d3 +7","d3 +6","d3 +5","d3 +4","d3 +3","d3 +2","d3 +1","d3","d3 -1","d3 -2","d3 -3","d3 -4","d3 -5","d3 -6","d3 -7","d3 -8 ; cis3/des3 +8","cis3/des3 +7","cis3/des3 +6","cis3/des3 +5","cis3/des3 +4","cis3/des3 +3","cis3/des3 +2","cis3/des3 +1","cis3/des3","cis3/des3 -1","cis3/des3 -2","cis3/des3 -3","cis3/des3 -4","cis3/des3 -5","cis3/des3 -6","cis3/des3 -7","cis3/des3 -8 ; c3 +8","c3 +7","c3 +6","c3 +5","c3 +4","c3 +3","c3 +2","c3 +1","c3","c3 -1","c3 -2","c3 -3","c3 -4","c3 -5","c3 -6","c3 -7","c3 -8 ; h2 +8","h2 +7","h2 +6","h2 +5","h2 +4","h2 +3","h2 +2","h2 +1","h2","h2 -1","h2 -2","h2 -3","h2 -4","h2 -5","h2 -6","h2 -7","h2 -8 ; ais2/b2 +8","ais2/b2 +7","ais2/b2 +6","ais2/b2 +5","ais2/b2 +4","ais2/b2 +3","ais2/b2 +2","ais2/b2 +1","ais2/b2","ais2/b2 -1","ais2/b2 -2","ais2/b2 -3","ais2/b2 -4","ais2/b2 -5","ais2/b2 -6","ais2/b2 -7","ais2/b2 -8 ; a2 +8","a2 +7","a2 +6","a2 +5","a2 +4","a2 +3","a2 +2","a2 +1","a2","a2 -1","a2 -2","a2 -3","a2 -4","a2 -5","a2 -6","a2 -7","a2 -8 ; gis2/as2 +8","gis2/as2 +7","gis2/as2 +6","gis2/as2 +5","gis2/as2 +4","gis2/as2 +3","gis2/as2 +2","gis2/as2 +1","gis2/as2","gis2/as2 -1","gis2/as2 -2","gis2/as2 -3","gis2/as2 -4","gis2/as2 -5","gis2/as2 -6","gis2/as2 -7","gis2/as2 -8 ; g2 +8","g2 +7","g2 +6","g2 +5","g2 +4","g2 +3","g2 +2","g2 +1","g2","g2 -1","g2 -2","g2 -3","g2 -4","g2 -5","g2 -6","g2 -7","g2 -8 ; fis2/ges2 +8","fis2/ges2 +7","fis2/ges2 +6","fis2/ges2 +5","fis2/ges2 +4","fis2/ges2 +3","fis2/ges2 +2","fis2/ges2 +1","fis2/ges2","fis2/ges2 -1","fis2/ges2 -2","fis2/ges2 -3","fis2/ges2 -4","fis2/ges2 -5","fis2/ges2 -6","fis2/ges2 -7","fis2/ges2 -8 ; f2 +8","f2 +7","f2 +6","f2 +5","f2 +4","f2 +3","f2 +2","f2 +1","f2","f2 -1","f2 -2","f2 -3","f2 -4","f2 -5","f2 -6","f2 -7","f2 -8 ; e2 +8","e2 +7","e2 +6","e2 +5","e2 +4","e2 +3","e2 +2","e2 +1","e2","e2 -1","e2 -2","e2 -3","e2 -4","e2 -5","e2 -6","e2 -7","e2 -8 ; dis2/es2 +8","dis2/es2 +7","dis2/es2 +6","dis2/es2 +5","dis2/es2 +4","dis2/es2 +3","dis2/es2 +2","dis2/es2 +1","dis2/es2","dis2/es2 -1","dis2/es2 -2","dis2/es2 -3","dis2/es2 -4","dis2/es2 -5","dis2/es2 -6","dis2/es2 -7","dis2/es2 -8 ; d2 +8","d2 +7","d2 +6","d2 +5","d2 +4","d2 +3","d2 +2","d2 +1","d2","d2 -1","d2 -2","d2 -3","d2 -4","d2 -5","d2 -6","d2 -7","d2 -8 ; cis2/des2 +8","cis2/des2 +7","cis2/des2 +6","cis2/des2 +5","cis2/des2 +4","cis2/des2 +3","cis2/des2 +2","cis2/des2 +1","cis2/des2","cis2/des2 -1","cis2/des2 -2","cis2/des2 -3","cis2/des2 -4","cis2/des2 -5","cis2/des2 -6","cis2/des2 -7","cis2/des2 -8 ; c2 +8","c2 +7","c2 +6","c2 +5","c2 +4","c2 +3","c2 +2","c2 +1","c2","c2 -1","c2 -2","c2 -3","c2 -4","c2 -5","c2 -6","c2 -7","c2 -8 ; h1 +8","h1 +7","h1 +6","h1 +5","h1 +4","h1 +3","h1 +2","h1 +1","h1","h1 -1","h1 -2","h1 -3","h1 -4","h1 -5","h1 -6","h1 -7","h1 -8 ; ais1/b1 +8","ais1/b1 +7","ais1/b1 +6","ais1/b1 +5","ais1/b1 +4","ais1/b1 +3","ais1/b1 +2","ais1/b1 +1","ais1/b1","ais1/b1 -1","ais1/b1 -2","ais1/b1 -3","ais1/b1 -4","ais1/b1 -5","ais1/b1 -6","ais1/b1 -7","ais1/b1 -8 ; a1 +8","a1 +7","a1 +6","a1 +5","a1 +4","a1 +3","a1 +2","a1 +1","a1","a1 -1","a1 -2","a1 -3","a1 -4","a1 -5","a1 -6","a1 -7","a1 -8 ; gis1/as1 +8","gis1/as1 +7","gis1/as1 +6","gis1/as1 +5","gis1/as1 +4","gis1/as1 +3","gis1/as1 +2","gis1/as1 +1","gis1/as1","gis1/as1 -1","gis1/as1 -2","gis1/as1 -3","gis1/as1 -4","gis1/as1 -5","gis1/as1 -6","gis1/as1 -7","gis1/as1 -8 ; g1 +8","g1 +7","g1 +6","g1 +5","g1 +4","g1 +3","g1 +2","g1 +1","g1","g1 -1","g1 -2","g1 -3","g1 -4","g1 -5","g1 -6","g1 -7","g1 -8 ; fis1/ges1 +8","fis1/ges1 +7","fis1/ges1 +6","fis1/ges1 +5","fis1/ges1 +4","fis1/ges1 +3","fis1/ges1 +2","fis1/ges1 +1","fis1/ges1","fis1/ges1 -1","fis1/ges1 -2","fis1/ges1 -3","fis1/ges1 -4","fis1/ges1 -5","fis1/ges1 -6","fis1/ges1 -7","fis1/ges1 -8 ; f1 +8","f1 +7","f1 +6","f1 +5","f1 +4","f1 +3","f1 +2","f1 +1","f1","f1 -1","f1 -2","f1 -3","f1 -4","f1 -5","f1 -6","f1 -7","f1 -8 ; e1 +8","e1 +7","e1 +6","e1 +5","e1 +4","e1 +3","e1 +2","e1 +1","e1","e1 -1","e1 -2","e1 -3","e1 -4","e1 -5","e1 -6","e1 -7","e1 -8 ; dis1/es1 +8","dis1/es1 +7","dis1/es1 +6","dis1/es1 +5","dis1/es1 +4","dis1/es1 +3","dis1/es1 +2","dis1/es1 +1","dis1/es1","dis1/es1 -1","dis1/es1 -2","dis1/es1 -3","dis1/es1 -4","dis1/es1 -5","dis1/es1 -6","dis1/es1 -7","dis1/es1 -8 ; d1 +8","d1 +7","d1 +6","d1 +5","d1 +4","d1 +3","d1 +2","d1 +1","d1","d1 -1","d1 -2","d1 -3","d1 -4","d1 -5","d1 -6","d1 -7","d1 -8 ; cis1/des1 +8","cis1/des1 +7","cis1/des1 +6","cis1/des1 +5","cis1/des1 +4","cis1/des1 +3","cis1/des1 +2","cis1/des1 +1","cis1/des1","cis1/des1 -1","cis1/des1 -2","cis1/des1 -3","cis1/des1 -4","cis1/des1 -5","cis1/des1 -6","cis1/des1 -7","cis1/des1 -8 ; c1 +8","c1 +7","c1 +6","c1 +5","c1 +4","c1 +3","c1 +2","c1 +1","c1","c1 -1","c1 -2","c1 -3","c1 -4","c1 -5","c1 -6","c1 -7","c1 -8 ; h0 +8","h0 +7","h0 +6","h0 +5","h0 +4","h0 +3","h0 +2","h0 +1","h0","h0 -1","h0 -2","h0 -3","h0 -4","h0 -5","h0 -6","h0 -7","h0 -8 ; ais0/b0 +8","ais0/b0 +7","ais0/b0 +6","ais0/b0 +5","ais0/b0 +4","ais0/b0 +3","ais0/b0 +2","ais0/b0 +1","ais0/b0","ais0/b0 -1","ais0/b0 -2","ais0/b0 -3","ais0/b0 -4","ais0/b0 -5","ais0/b0 -6","ais0/b0 -7","ais0/b0 -8 ; a0 +8","a0 +7","a0 +6","a0 +5","a0 +4","a0 +3","a0 +2","a0 +1","a0","a0 -1","a0 -2","a0 -3","a0 -4","a0 -5","a0 -6","a0 -7","a0 -8 ; gis0/as0 +8","gis0/as0 +7","gis0/as0 +6","gis0/as0 +5","gis0/as0 +4","gis0/as0 +3","gis0/as0 +2","gis0/as0 +1","gis0/as0","gis0/as0 -1","gis0/as0 -2","gis0/as0 -3","gis0/as0 -4","gis0/as0 -5","gis0/as0 -6","gis0/as0 -7","gis0/as0 -8 ; g0 +8","g0 +7","g0 +6","g0 +5","g0 +4","g0 +3","g0 +2","g0 +1","g0","g0 -1","g0 -2","g0 -3","g0 -4","g0 -5","g0 -6","g0 -7","g0 -8 ; fis0/ges0 +8","fis0/ges0 +7","fis0/ges0 +6","fis0/ges0 +5","fis0/ges0 +4","fis0/ges0 +3","fis0/ges0 +2","fis0/ges0 +1","fis0/ges0","fis0/ges0 -1","fis0/ges0 -2","fis0/ges0 -3","fis0/ges0 -4","fis0/ges0 -5","fis0/ges0 -6","fis0/ges0 -7","fis0/ges0 -8 ; f0 +8","f0 +7","f0 +6","f0 +5","f0 +4","f0 +3","f0 +2","f0 +1","f0","f0 -1","f0 -2","f0 -3","f0 -4","f0 -5","f0 -6","f0 -7","f0 -8 ; e0 +8","e0 +7","e0 +6","e0 +5","e0 +4","e0 +3","e0 +2","e0 +1","e0","e0 -1","e0 -2","e0 -3","e0 -4","e0 -5","e0 -6","e0 -7","e0 -8 ; dis0/es0 +8","dis0/es0 +7","dis0/es0 +6","dis0/es0 +5","dis0/es0 +4","dis0/es0 +3","dis0/es0 +2","dis0/es0 +1","dis0/es0","dis0/es0 -1","dis0/es0 -2","dis0/es0 -3","dis0/es0 -4","dis0/es0 -5","dis0/es0 -6","dis0/es0 -7","dis0/es0 -8 ; d0 +8","d0 +7","d0 +6","d0 +5","d0 +4","d0 +3","d0 +2","d0 +1","d0","d0 -1","d0 -2","d0 -3","d0 -4","d0 -5","d0 -6","d0 -7","d0 -8 ; cis0/des0 +8","cis0/des0 +7","cis0/des0 +6","cis0/des0 +5","cis0/des0 +4","cis0/des0 +3","cis0/des0 +2","cis0/des0 +1","cis0/des0","cis0/des0 -1","cis0/des0 -2","cis0/des0 -3","cis0/des0 -4","cis0/des0 -5","cis0/des0 -6","cis0/des0 -7","cis0/des0 -8 ; c0 +8","c0 +7","c0 +6","c0 +5","c0 +4","c0 +3","c0 +2","c0 +1","c0","c0 -1","c0 -2","c0 -3","c0 -4","c0 -5","c0 -6","c0 -7","c0 -8 ; H +8","H +7","H +6","H +5","H +4","H +3","H +2","H +1","H","H -1","H -2","H -3","H -4","H -5","H -6","H -7","H -8 ; Ais/B +8","Ais/B +7","Ais/B +6","Ais/B +5","Ais/B +4","Ais/B +3","Ais/B +2","Ais/B +1","Ais/B","Ais/B -1","Ais/B -2","Ais/B -3","Ais/B -4","Ais/B -5","Ais/B -6","Ais/B -7","Ais/B -8 ; A +8","A +7","A +6","A +5","A +4","A +3","A +2","A +1","A","A -1","A -2","A -3","A -4","A -5","A -6","A -7","A -8 ; Gis/As +8","Gis/As +7","Gis/As +6","Gis/As +5","Gis/As +4","Gis/As +3","Gis/As +2","Gis/As +1","Gis/As","Gis/As -1","Gis/As -2","Gis/As -3","Gis/As -4","Gis/As -5","Gis/As -6","Gis/As -7","Gis/As -8 ; G +8","G +7","G +6","G +5","G +4","G +3","G +2","G +1","G","G -1","G -2","G -3","G -4","G -5","G -6","G -7","G -8 ; Fis/Ges +8","Fis/Ges +7","Fis/Ges +6","Fis/Ges +5","Fis/Ges +4","Fis/Ges +3","Fis/Ges +2","Fis/Ges +1","Fis/Ges","Fis/Ges -1","Fis/Ges -2","Fis/Ges -3","Fis/Ges -4","Fis/Ges -5","Fis/Ges -6","Fis/Ges -7","Fis/Ges -8 ; F +8","F +7","F +6","F +5","F +4","F +3","F +2","F +1","F","F -1","F -2","F -3","F -4","F -5","F -6","F -7","F -8 ; E +8","E +7","E +6","E +5","E +4","E +3","E +2","E +1","E","E -1","E -2","E -3","E -4","E -5","E -6","E -7","E -8 ; Dis/Es +8","Dis/Es +7","Dis/Es +6","Dis/Es +5","Dis/Es +4","Dis/Es +3","Dis/Es +2","Dis/Es +1","Dis/Es","Dis/Es -1","Dis/Es -2","Dis/Es -3","Dis/Es -4","Dis/Es -5","Dis/Es -6","Dis/Es -7","Dis/Es -8 ; D +8","D +7","D +6","D +5","D +4","D +3","D +2","D +1","D","D -1","D -2","D -3","D -4","D -5","D -6","D -7","D -8 ; Cis/Des +8","Cis/Des +7","Cis/Des +6","Cis/Des +5","Cis/Des +4","Cis/Des +3","Cis/Des +2","Cis/Des +1","Cis/Des","Cis/Des -1","Cis/Des -2","Cis/Des -3","Cis/Des -4","Cis/Des -5","Cis/Des -6","Cis/Des -7","Cis/Des -8 ; C +8","C +7","C +6","C +5","C +4","C +3","C +2","C +1","C","C -1","C -2","C -3","C -4","C -5","C -6","C -7","C -8 ; H1 +8","H1 +7","H1 +6","H1 +5","H1 +4","H1 +3","H1 +2","H1 +1","H1","H1 -1","H1 -2","H1 -3","H1 -4","H1 -5","H1 -6","H1 -7","H1 -8 ; Ais1/B1 +8","Ais1/B1 +7","Ais1/B1 +6","Ais1/B1 +5","Ais1/B1 +4","Ais1/B1 +3","Ais1/B1 +2","Ais1/B1 +1","Ais1/B1","Ais1/B1 -1","Ais1/B1 -2","Ais1/B1 -3","Ais1/B1 -4","Ais1/B1 -5","Ais1/B1 -6","Ais1/B1 -7","Ais1/B1 -8 ; A1 +8","A1 +7","A1 +6","A1 +5","A1 +4","A1 +3","A1 +2","A1 +1","A1"],"anchor":624,"rip":{"rs":[-10.556296774193555,-8.15333161290323,-6.01736258064517,-3.6143974193548445,-1.2114322580645336,0.9245367741935411,3.327501935483852,5.730467096774177,8.133432258064516,10.536397419354827,12.672366451612902,15.075331612903213,17.478296774193538,19.881261935483863,22.284227096774174,24.42019612903225,26.82316129032256,29.226126451612885,31.62909161290321],"tones":["h3","ais3/b3","a3","gis3/as3","g3","fis3/ges3","f3","e3","dis3/es3","d3","cis3/des3","c3","h2","ais2/b2","a2","gis2/as2","g2","fis2/ges2","f2","e2","dis2/es2","d2","cis2/des2","c2","h1","ais1/b1","a1","gis1/as1","g1","fis1/ges1","f1","e1","dis1/es1","d1","cis1/des1","c1","h0","ais0/b0","a0","gis0/as0","g0","fis0/ges0","f0","e0","dis0/es0","d0","cis0/des0","c0"],"d":{"h3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,260],"ais3/b3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,270,275],"a3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,281,286,292],"gis3/as3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,292,298,304,309],"g3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,304,310,316,322,328],"fis3/ges3":[null,null,null,null,null,null,null,null,null,null,null,null,null,316,322,329,335,341,347],"f3":[null,null,null,269,276,282,289,296,302,309,315,322,329,335,342,348,355,362,368],"e3":[null,null,null,285,292,299,306,313,320,327,334,341,348,355,362,369,376,383,390],"dis3/es3":[null,null,null,303,310,317,325,332,340,347,354,362,369,377,384,391,399,406,414],"d3":[298,null,null,320,329,337,344,352,360,368,376,384,391,399,407,415,423,431,439],"cis3/des3":[316,null,332,340,349,357,365,374,382,390,398,407,415,423,432,440,448,457,465],"c3":[335,344,352,361,370,378,387,396,405,414,422,431,440,449,458,466,475,484,493],"h2":[355,364,374,383,392,401,411,420,429,438,448,457,467,476,485,494,504,513,522],"ais2/b2":[377,386,396,406,416,426,436,445,455,465,475,485,495,504,514,524,534,544,554],"a2":[399,410,420,430,441,451,462,472,482,493,503,514,524,535,545,555,566,576,587],"gis2/as2":[424,435,446,456,467,478,489,500,511,522,533,544,556,567,578,589,600,611,622],"g2":[449,461,473,484,496,507,519,531,543,555,566,578,589,601,613,624,636,647,659],"fis2/ges2":[476,489,501,513,526,538,550,563,575,587,600,612,625,637,649,662,674,686,699],"f2":[505,518,531,544,557,571,584,597,610,623,636,649,662,675,688,701,714,728,741],"e2":[536,550,564,577,591,604,618,632,646,660,674,687,702,716,730,743,757,771,785],"dis2/es2":[568,583,598,612,627,641,656,671,685,700,715,729,744,759,773,788,803,817,832],"d2":[603,618,634,649,665,680,696,711,727,742,758,773,789,805,820,836,851,867,882],"cis2/des2":[639,656,672,689,705,721,738,754,770,787,803,820,836,853,869,886,902,918,935],"c2":[678,695,713,730,747,765,782,800,817,834,852,869,887,904,922,939,956,974,991],"h1":[719,737,765,774,792,811,829,848,866,884,903,921,940,958,977,995,1013,1032,1050],"ais1/b1":[763,782,802,821,841,860,880,899,919,938,958,977,997,1016,1036,1055,1074,1094,1114],"a1":[809,829,850,871,891,912,933,953,974,994,1015,1036,1056,1077,1097,1118,1139,1159,1180],"gis1/as1":[858,880,902,922,944,967,988,1009,1031,1053,1075,1097,1120,1142,1164,1185,1207,1229,1251],"g1":[910,932,955,979,1002,1025,1049,1072,1094,1118,1141,1164,1187,1210,1233,1256,1279,1302,1326],"fis1/ges1":[965,989,1014,1038,1062,1087,1112,1136,1160,1185,1209,1234,1258,1283,1307,1332,1356,1381,1405],"f1":[1023,1049,1075,1101,1127,1153,1179,1205,1231,1256,1282,1308,1334,1360,1386,1412,1438,1464,1490],"e1":[1085,1113,1140,1168,1195,1222,1250,1277,1304,1332,1359,1387,1414,1442,1469,1496,1524,1551,1579],"dis1/es1":[1151,1180,1209,1238,1267,1296,1325,1354,1383,1412,1441,1470,1499,1528,1557,1586,1615,1644,null],"d1":[1221,1251,1292,1313,1343,1374,1405,1436,1466,1497,1528,1559,1589,1620,1651,1682,1712,null,null],"cis1/des1":[1295,1327,1360,1392,1425,1457,1491,1523,1555,1587,1620,1653,1685,1718,1750,1783,null,null,null],"c1":[1373,1408,1442,1477,1511,1546,1580,1614,1648,1683,1718,1752,1787,1821,1855,null,null,null,null],"h0":[1456,1493,1529,1565,1602,1638,1676,1712,1748,1748,1821,1857,1894,1930,null,null,null,null,null],"ais0/b0":[1545,1584,1622,1661,1699,1738,1777,1815,1854,1892,1931,1970,2008,null,null,null,null,null,null],"a0":[1638,1679,1720,1760,1801,1842,1884,1924,1965,2006,2046,2087,null,null,null,null,null,null,null],"gis0/as0":[1737,1781,1824,1865,1908,1951,1996,2038,2081,2124,2167,2211,null,null,null,null,null,null,null],"g0":[1842,1889,1934,1980,2025,2072,2118,2164,2209,2254,2300,2346,null,null,null,null,null,null,null],"fis0/ges0":[1954,2003,2051,2100,2148,2196,2245,2294,2341,2390,2438,2487,null,null,null,null,null,null,null],"f0":[2072,2124,2175,2227,2278,2329,2382,2432,2483,2534,2586,2636,null,null,null,null,null,null,null],"e0":[2198,2252,2307,2361,2415,2469,2525,2578,2632,2686,2741,2795,null,null,null,null,null,null,null],"dis0/es0":[2331,2388,2446,2503,2560,2618,2677,2734,2791,2848,2906,2963,null,null,null,null,null,null,null],"d0":[2472,2533,2595,2655,2716,2777,2839,2899,2959,3020,3081,3142,null,null,null,null,null,null,null],"cis0/des0":[2622,2687,2751,2815,2880,2945,3010,3074,3137,3201,3266,3331,null,null,null,null,null,null,null],"c0":[2781,2850,2918,2986,3053,3122,3192,3259,3326,3394,3463,3531,null,null,null,null,null,null,null]},"kg":{"h3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,16.8],"ais3/b3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,17.92,20.16],"a3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,20.16,21.28,23.52],"gis3/as3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,21.28,23.52,25.76,28.0],"g3":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,23.52,25.76,28.0,30.24,33.6],"fis3/ges3":[null,null,null,null,null,null,null,null,null,null,null,null,null,25.76,28.0,31.36,33.6,35.84,39.2],"f3":[null,null,null,11.76,13.44,14.56,16.24,17.92,19.6,21.84,23.52,25.76,29.12,31.36,33.6,36.96,40.32,43.68,47.04],"e3":[null,null,null,14.0,15.68,17.36,19.04,21.28,23.52,25.76,28.0,30.8,33.6,36.96,40.32,43.68,48.16,51.52,56.0],"dis3/es3":[null,null,null,16.8,19.04,20.72,22.96,25.2,28.0,30.8,33.6,36.96,40.32,44.8,48.16,52.64,57.12,61.6,67.2],"d3":[14.56,null,null,20.16,22.4,24.64,27.44,30.24,33.6,36.96,40.32,44.24,48.16,52.64,57.12,62.72,68.32,73.92,79.52],"cis3/des3":[17.92,null,21.28,24.64,26.88,29.12,32.48,35.84,40.32,43.68,48.16,52.64,57.12,62.72,68.32,73.92,80.64,87.36,95.2],"c3":[21.28,23.52,25.76,29.12,32.48,35.84,39.2,42.56,47.04,52.64,57.12,62.72,68.32,75.04,81.76,88.48,96.32,104.16,113.12],"h2":[24.64,28.0,31.36,34.72,38.08,42.56,47.04,51.52,57.12,62.72,68.32,75.04,81.76,89.6,97.44,105.28,114.24,124.32,134.4],"ais2/b2":[29.12,33.6,36.96,41.44,45.92,50.4,56.0,61.6,67.2,73.92,81.76,89.6,97.44,106.4,115.36,125.44,136.64,147.84,160.16],"a2":[35.84,39.2,43.68,49.28,53.76,60.48,66.08,72.8,80.64,88.48,97.44,106.4,116.48,126.56,137.76,150.08,162.4,175.84,190.4],"gis2/as2":[42.56,47.04,52.64,58.24,64.96,71.68,79.52,87.36,95.2,105.28,115.36,126.56,137.76,151.2,163.52,178.08,193.76,209.44,227.36],"g2":[50.4,56.0,62.72,69.44,77.28,85.12,94.08,104.16,115.36,126.56,137.76,151.2,164.64,179.2,196.0,212.8,230.72,249.76,269.92],"fis2/ges2":[60.48,67.2,75.04,82.88,91.84,101.92,113.12,124.32,136.64,150.08,164.64,179.2,196.0,213.92,232.96,253.12,274.4,297.92,322.56],"f2":[71.68,80.64,89.6,99.68,109.76,122.08,134.4,147.84,163.52,179.2,196.0,213.92,234.08,255.36,277.76,301.28,327.04,355.04,384.16],"e2":[86.24,96.32,106.4,118.72,131.04,144.48,160.16,175.84,193.76,212.8,232.96,254.24,278.88,304.64,330.4,359.52,389.76,422.24,456.96],"dis2/es2":[101.92,114.24,127.68,141.12,156.8,173.6,191.52,210.56,231.84,254.24,278.88,304.64,332.64,383.04,394.24,428.96,464.8,502.88,544.32],"d2":[122.08,136.64,152.32,169.12,187.04,207.2,228.48,252.0,276.64,303.52,332.64,362.88,396.48,432.32,470.4,510.72,554.4,600.32,649.6],"cis2/des2":[145.6,163.52,181.44,201.6,222.88,246.4,273.28,300.16,329.28,361.76,396.48,433.44,472.64,515.2,560,609.28,659.68,714.56,773.92],"c2":[174.72,194.88,217.28,240.8,266.56,294.56,325.92,358.4,394.24,432.32,472.64,516.32,564.48,614.88,668.64,725.76,787.36,852.32,921.76],"h1":[208.32,231.84,258.72,286.72,318.08,351.68,388.64,427.84,469.28,515.2,563.36,616.0,672.0,732.48,796.32,864.64,937.44,1014.72,1097.6],"ais1/b1":[248.64,277.76,309.12,343.84,379.68,420.0,463.68,510.72,560,614.88,673.12,734.72,801.92,873.6,949.76,1031.52,1117.76,1210.72,1309.28],"a1":[296.8,336.0,372.96,408.8,452.48,500.64,553.28,608.16,667.52,732.48,800.8,875.84,955.36,1039.36,1131.2,1227.52,1330.56,1441.44,1559.04],"gis1/as1":[355.04,402.08,448.0,487.2,538.72,598.08,657.44,723.52,794.08,870.24,953.12,1040.48,1139.04,1240.96,1348.48,1463.84,1587.04,1718.08,1856.96],"g1":[423.36,479.36,534.24,583.52,645.12,713.44,787.36,865.76,949.76,1041.6,1140.16,1244.32,1357.44,1478.4,1606.08,1742.72,1890.56,2045.12,2212],"fis1/ges1":[506.24,574.56,637.28,696.64,769.44,850.08,938.56,1032.64,1132.32,1240.96,1358.56,1482.88,1617.28,1761.76,1914.08,2077.6,2252.32,2437.12,2633.12],"f1":[604.8,684.32,753.76,831.04,919.52,1015.84,1121.12,1232.0,1351.84,1480.64,1620.64,1769.6,1929.76,2102.24,2283.68,2477.44,2686.88,2906.4,3140.48],"e1":[721.28,814.24,898.24,992.32,1096.48,1211.84,1337.28,1468.32,1611.68,1765.12,1932.0,2108.96,2299.36,2502.08,2720.48,2951.2,3197.6,3461.92,3740.8],"dis1/es1":[861.28,966.56,1078.56,1183.84,1309.28,1444.8,1594.88,1752.8,1921.92,2104.48,2303.84,2514.4,2739.52,2983.68,3241.28,3516.8,3809.12,4123.84,null],"d1":[1029.28,1151.36,1290.24,1413.44,1562.4,1725.92,1902.88,2092.16,2292.64,2511.04,2747.36,2999.36,3268.16,3558.24,3866.24,4193.28,4542.72,null,null],"cis1/des1":[1228.64,1376.48,1531.04,1686.72,1865.92,2058.56,2272.48,2495.36,2733.92,2994.88,3277.12,3576.16,3896.48,4242.56,4608.8,4999.68,null,null,null],"c1":[1467.2,1645.28,1834.56,2014.88,2225.44,2458.4,2710.4,2975.84,3261.44,3571.68,3907.68,4264.96,4646.88,5055.68,5491.36,null,null,null,null],"h0":[1751.68,1962.24,2182.88,2401.28,2655.52,2931.04,3233.44,3550.4,3890.88,4260.48,4656.96,5081.44,5536.16,6022.24,null,null,null,null,null],"ais0/b0":[2093.28,2344.16,2609.6,2871.68,3171.84,3500.0,3861.76,4239.2,4645.76,5085.92,5559.68,6067.04,6609.12,null,null,null,null,null,null],"a0":[2498.72,2795.52,3096.8,3421.6,3780.0,4174.24,4599.84,5050.08,5533.92,6059.2,6622.56,7226.24,null,null,null,null,null,null,null],"gis0/as0":[2983.68,3336.48,3696.0,4074.56,4499.04,4963.84,5475.68,6005.44,6580.0,7203.84,7872.48,8589.28,null,null,null,null,null,null,null],"g0":[3563.84,3982.72,4410.56,4876.48,5384.96,5946.08,6553.12,7192.64,7872.48,8618.4,9419.2,10267.04,null,null,null,null,null,null,null],"fis0/ges0":[4254.88,4748.8,5275.2,5820.64,6427.68,7089.6,7812.0,8574.72,9384.48,10273.76,11226.88,12237.12,null,null,null,null,null,null,null],"f0":[5081.44,5660.48,6292.16,6948.48,7672.0,8461.6,9331.84,10232.32,11198.88,12258.4,13395.2,14586.88,null,null,null,null,null,null,null],"e0":[6068.16,6779.36,7515.2,8291.36,9153.76,10095.68,11122.72,12194.56,13358.24,14607.04,15961.12,17395.84,null,null,null,null,null,null,null],"dis0/es0":[7245.28,8058.4,8944.32,9891.84,10920.0,12043.36,13276.48,14557.76,15932.0,17420.48,19033.28,20743.52,null,null,null,null,null,null,null],"d0":[8654.24,9643.2,10711.68,11817.12,13044.64,14384.16,15844.64,17368.96,19006.4,20781.6,22704.64,24743.04,null,null,null,null,null,null,null],"cis0/des0":[10330.88,11522.56,12772.48,14090.72,15561.28,17157.28,18893.28,20715.52,22659.84,24782.24,27074.88,29504.16,null,null,null,null,null,null,null],"c0":[12337.92,13733.44,15093.12,16836.96,18557.28,20464.64,22550.08,24708.32,27025.6,29544.48,32281.76,35174.72,null,null,null,null,null,null,null]}}};
+const BASIS_B64 = "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";
+// ===== Berechnungskern (entspricht Factsheet "Töne_Rippe") =====
+const PARTIALS = [
+  { key: 'unterton', label: 'Unterton', ref: +192 },
+  { key: 'nominal', label: 'Nominal', ref: 0, computed: true },
+  { key: 'prime', label: 'Prime', ref: 0 },
+  { key: 'terz', label: 'Terz', ref: -50 },
+  { key: 'quinte', label: 'Quinte', ref: -112 },
+  { key: 'oktave', label: 'Oktave', ref: -192 },
+  { key: 'dezime', label: 'Dezime', ref: -256 },
+  { key: 'undezime', label: 'Undezime', ref: -272, note: 'gleiche 16tel wie Schlagton' },
+  { key: 'duodezime', label: 'Duodezime', ref: -304 },
+  { key: 'doppeloktave', label: 'Doppeloktave', ref: -384 },
+];
+const KORREKTUR = [1, 0.95, 0.65];
+
+function toneFreq(i, a1) { return a1 * Math.pow(2, ((DATA.anchor - i) * 6.25) / 1200); }
+function validIdx(i) { return Number.isInteger(i) && i >= 0 && i < DATA.tones.length; }
+function nearestIdx(f, a1) {
+  if (!(f > 0)) return null;
+  // Tabelle absteigend; erster Treffer des Minimums wie MATCH(MIN(ABS(...)))
+  let best = null, bd = Infinity;
+  for (let i = 0; i < DATA.tones.length; i++) {
+    const d = Math.abs(toneFreq(i, a1) - f);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+function baseTone(name) {
+  if (!name) return '';
+  return name.split(';')[0].trim().split(' ')[0];
+}
+function num(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim().replace(/[’'\s]/g, '').replace(',', '.');
+  if (s === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function computeBell(bell, a1) {
+  const f = bell.f || {};
+  const rows = {};
+  for (const p of PARTIALS) {
+    if (p.computed) continue;
+    const fm = num(f[p.key]);
+    const idx = nearestIdx(fm, a1);
+    rows[p.key] = { measured: fm, idx, bezug: idx === null ? null : toneFreq(idx, a1), ton: idx === null ? '' : DATA.tones[idx] };
+  }
+  // Nominal = Oktave-Ton eine Oktave tiefer (Excel D12)
+  const okt = rows.oktave.idx;
+  const nIdx = okt === null ? null : okt + 192;
+  const nOk = nIdx !== null && validIdx(nIdx);
+  rows.nominal = { measured: nOk ? toneFreq(nIdx, a1) : null, idx: nOk ? nIdx : null, bezug: null, ton: nOk ? DATA.tones[nIdx] : '' };
+  for (const p of PARTIALS) {
+    const r = rows[p.key];
+    const ri = nOk ? nIdx + p.ref : null;
+    r.refIdx = ri !== null && validIdx(ri) ? ri : null;
+    r.refTon = r.refIdx === null ? '' : DATA.tones[r.refIdx];
+    r.refHz = r.refIdx === null ? null : toneFreq(r.refIdx, a1);
+    // Abweichung in 1/16-Halbtönen (positiv = höher als Referenz)
+    r.dev = (r.idx !== null && r.refIdx !== null && !p.computed) ? r.refIdx - r.idx : null;
+  }
+  // Rippe
+  const D = num(bell.durchmesser);
+  const fN = rows.nominal.measured;
+  const I = num(bell.korrektur) ?? 1;
+  const rs = D && fN ? (D * fN * I) / 3875 - 100 : null;
+  const autoSchlag = baseTone(rows.nominal.ton);
+  const schlagton = bell.schlagton || (DATA.rip.tones.includes(autoSchlag) ? autoSchlag : '');
+  let ripKg = null, ripGroup = null, ripD = null;
+  if (rs !== null && schlagton && DATA.rip.kg[schlagton]) {
+    let g = -1;
+    DATA.rip.rs.forEach((v, k) => { if (v <= rs) g = k; });
+    // Excel: INDEX(Rippentabelle[], …, MATCH(RS; C3:AN3; 1)) – die Tabelle beginnt bei Spalte B,
+    // der MATCH-Bereich bei C. Dadurch liefert Excel das kg der Spalte links vom Treffer
+    // (= Gewicht der vorherigen Rippengruppe). Das wird hier 1:1 nachgebildet.
+    if (g >= 1) {
+      ripGroup = g - 1;
+      const kg = DATA.rip.kg[schlagton][g - 1];
+      ripD = DATA.rip.d[schlagton][g - 1];
+      if (kg !== null && kg !== undefined) ripKg = Math.ceil(kg / 100) * 100;
+    }
+  }
+  const mittel = D && fN ? 11.42 * Math.pow(D / 1000, 11 / 3) * Math.pow(fN, 2 / 3) : null;
+  const range = mittel === null ? null : [
+    { label: '+11 %', v: mittel * 1.11 }, { label: '+3.5 %', v: mittel * 1.035 }, { label: 'Mittel', v: mittel },
+    { label: '−3.5 %', v: mittel * 0.965 }, { label: '−11 %', v: mittel * 0.89 },
+  ];
+  let klasse = null;
+  if (rs !== null) {
+    klasse = rs < -6 ? 'Sehr leichte Rippe' : rs < 0 ? 'Leichte Rippe' : rs < 6 ? 'Mittlere Rippe' : rs < 12 ? 'Schwere Rippe' : 'Sehr schwere Rippe';
+  }
+  return { rows, rs, schlagton, autoSchlag, ripKg, ripGroup, ripD, range, klasse, I };
+}
+
+
+</script>
+<script>
+// ===== Zustand =====
+const $ = (id) => document.getElementById(id);
+const PKEYS = PARTIALS.filter((p) => !p.computed).map((p) => p.key);
+const LS_DRAFT = 'gelaeut-draft-v1';
+const LS_LOCAL = 'gelaeut-local-v1';
+
+function newBell() {
+  return { name: '', gussjahr: '', giesser: '', durchmesser: '', gewicht: '', korrektur: '1', schlagton: '', f: Object.fromEntries(PKEYS.map((k) => [k, ''])) };
+}
+function newGelaeut() {
+  return { id: null, name: '', ort: '', a1: 435, bells: [newBell()] };
+}
+function demoGelaeut() {
+  const base = { unterton: 193.2, prime: 389.1, terz: 462.5, quinte: 578, oktave: 776.4, dezime: 979, undezime: 1031, duodezime: 1166, doppeloktave: 1556 };
+  const mk = (name, jahr, ratio, d, tweak) => {
+    const b = newBell();
+    Object.assign(b, { name, gussjahr: String(jahr), giesser: 'Beispielgiesserei', durchmesser: String(Math.round(d)) });
+    for (const k of PKEYS) b.f[k] = (base[k] * ratio * (tweak[k] || 1)).toFixed(1);
+    return b;
+  };
+  return {
+    id: null, demo: true, name: 'Beispiel-Geläut', ort: 'Beispielort', a1: 435,
+    bells: [
+      mk('Grosse Glocke', 1898, 1, 1110, {}),
+      mk('Mittlere Glocke', 1898, Math.pow(2, 2 / 12), 985, { terz: 0.996, quinte: 1.004 }),
+      mk('Kleine Glocke', 1923, Math.pow(2, 5 / 12), 828, { prime: 1.006, dezime: 0.995 }),
+    ],
+  };
+}
+
+const state = {
+  g: null, sel: 0, dirty: false, saved: [], store: 'none', db: null, mode: 'ton',
+};
+
+// ===== Hilfen =====
+const fmt = (v, d = 1) => (v === null || v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(d));
+const fmtKg = (v) => (v === null || !Number.isFinite(v) ? '—' : Math.round(v).toLocaleString('de-CH'));
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 3200);
+}
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function a1() { return Number(state.g.a1) || 435; }
+function bell() { return state.g.bells[state.sel]; }
+function armButton(btn, label, fn) {
+  // Zweistufige Bestätigung statt confirm()
+  if (btn.dataset.armed) { delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent = btn.dataset.label; fn(); return; }
+  btn.dataset.label = btn.textContent; btn.dataset.armed = '1'; btn.classList.add('armed'); btn.textContent = label;
+  setTimeout(() => { if (btn.dataset.armed) { delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent = btn.dataset.label; } }, 3500);
+}
+
+// ===== Dirty / Status =====
+function setDirty(d) {
+  state.dirty = d;
+  if (d && state.g.demo) { state.g.demo = false; $('demoBanner').hidden = true; }
+  const s = $('status');
+  if (d) { s.textContent = 'Ungespeicherte Änderungen'; s.className = 'status dirty'; }
+  else if (state.g.id) { s.textContent = 'Gespeichert'; s.className = 'status'; }
+  else { s.textContent = 'Noch nicht gespeichert'; s.className = 'status'; }
+  lsSet(LS_DRAFT, { g: state.g, sel: state.sel, dirty: state.dirty });
+}
+
+// ===== Rendering =====
+function renderAll() {
+  $('gName').value = state.g.name || '';
+  $('gOrt').value = state.g.ort || '';
+  $('gA1').value = String(a1());
+  $('demoBanner').hidden = !state.g.demo;
+  renderTabs(); renderBellForm(); renderComputed(); renderOverview(); renderSaved();
+  setDirty(state.dirty);
+}
+
+function renderTabs() {
+  const el = $('tabs');
+  el.innerHTML = '';
+  state.g.bells.forEach((b, i) => {
+    const r = computeBell(b, a1());
+    const t = document.createElement('button');
+    t.type = 'button'; t.className = 'tab'; t.setAttribute('role', 'tab');
+    t.setAttribute('aria-selected', String(i === state.sel));
+    t.innerHTML = `<b>${i + 1}</b><span>${esc(b.name || 'Ohne Namen')}</span>${r.rows.nominal.ton ? `<small>${esc(r.rows.nominal.ton)}</small>` : ''}`;
+    t.onclick = () => { state.sel = i; renderTabs(); renderBellForm(); renderComputed(); lsSet(LS_DRAFT, { g: state.g, sel: state.sel, dirty: state.dirty }); };
+    el.appendChild(t);
+  });
+  const add = document.createElement('button');
+  add.type = 'button'; add.className = 'tab add'; add.textContent = '+ Glocke hinzufügen';
+  add.onclick = () => { state.g.bells.push(newBell()); state.sel = state.g.bells.length - 1; setDirty(true); renderTabs(); renderBellForm(); renderComputed(); renderOverview(); $('b_name').focus(); };
+  el.appendChild(add);
+}
+
+function renderBellForm() {
+  const b = bell();
+  for (const k of ['name', 'gussjahr', 'giesser', 'durchmesser', 'gewicht']) $('b_' + k).value = b[k] ?? '';
+  $('b_korrektur').value = String(b.korrektur ?? '1');
+  // Teilton-Tabelle
+  const body = $('ptBody');
+  body.innerHTML = PARTIALS.map((p) => p.computed
+    ? `<tr class="nom"><th>${p.label}</th><td class="n num" id="c_${p.key}_m">—</td><td class="n dim c-bez">aus Oktave</td><td class="ton"><span id="c_${p.key}_t">—</span><small class="mref" id="c_${p.key}_mr"></small></td><td class="ton c-rt" id="c_${p.key}_rt">—</td><td class="n num c-rhz" id="c_${p.key}_rh">—</td><td class="n"></td></tr>`
+    : `<tr><th><label for="f_${p.key}">${p.label}</label>${p.note ? `<small>${p.note}</small>` : ''}</th><td class="n"><input class="in" id="f_${p.key}" data-f="${p.key}" inputmode="decimal" autocomplete="off" value="${esc(b.f[p.key])}"></td><td class="n num dim c-bez" id="c_${p.key}_b">—</td><td class="ton"><span id="c_${p.key}_t">—</span><small class="mref" id="c_${p.key}_mr"></small></td><td class="ton dim c-rt" id="c_${p.key}_rt">—</td><td class="n num dim c-rhz" id="c_${p.key}_rh">—</td><td class="n" id="c_${p.key}_d"></td></tr>`
+  ).join('');
+  $('bellNo').textContent = `Glocke ${state.sel + 1} von ${state.g.bells.length}`;
+  $('btnLeft').disabled = state.sel === 0;
+  $('btnRight').disabled = state.sel === state.g.bells.length - 1;
+  $('btnDel').disabled = state.g.bells.length === 1;
+}
+
+function renderComputed() {
+  const b = bell();
+  const r = computeBell(b, a1());
+  $('bellTitle').textContent = b.name || 'Name der Glocke';
+  for (const p of PARTIALS) {
+    const row = r.rows[p.key];
+    if (p.computed) {
+      $(`c_${p.key}_m`).textContent = fmt(row.measured, 2);
+    } else {
+      $(`c_${p.key}_b`).textContent = fmt(row.bezug, 2);
+      const d = $(`c_${p.key}_d`);
+      if (row.dev === null) d.innerHTML = '';
+      else {
+        const a = Math.abs(row.dev);
+        d.innerHTML = `<span class="dev ${a === 0 ? 'z' : a <= 4 ? 's' : 'l'}">${row.dev > 0 ? '+' : row.dev < 0 ? '−' : '±'}${a}</span>`;
+      }
+    }
+    $(`c_${p.key}_t`).textContent = row.ton || '—';
+    $(`c_${p.key}_rt`).textContent = row.refTon || '—';
+    $(`c_${p.key}_mr`).textContent = row.refTon ? 'Ref. ' + row.refTon : '';
+    $(`c_${p.key}_rh`).textContent = fmt(row.refHz, 2);
+  }
+  // Schlagton-Auswahl
+  const sel = $('b_schlagton');
+  const auto = DATA.rip.tones.includes(r.autoSchlag) ? r.autoSchlag : '';
+  sel.innerHTML = `<option value="">${auto ? `automatisch (${esc(auto)})` : 'automatisch (aus Nominal)'}</option>` +
+    DATA.rip.tones.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  sel.value = b.schlagton || '';
+  $('o_rs').textContent = r.rs === null ? '—' : r.rs.toFixed(2);
+  $('o_klasse').textContent = r.klasse || '—';
+  $('o_ripkg').innerHTML = r.ripKg !== null
+    ? `<strong>${fmtKg(r.ripKg)} kg</strong> <span class="dim" style="font-size:.8rem">(Spalte D${r.ripGroup + 1}, Ø ${r.ripD} mm)</span>`
+    : (r.rs === null ? '—' : '<span class="dim">ausserhalb der Rippentabelle</span>');
+  const idx = r.rs === null ? -1 : r.rs < -6 ? 0 : r.rs < 0 ? 1 : r.rs < 6 ? 2 : r.rs < 12 ? 3 : 4;
+  [...$('o_scale').children].forEach((c, i) => c.classList.toggle('on', i === idx));
+  $('o_range').innerHTML = r.range
+    ? r.range.map((x) => `<tr class="${x.label === 'Mittel' ? 'mid' : ''}"><td>${x.label}</td><td class="n">${fmtKg(x.v)} kg</td></tr>`).join('')
+    : '<tr><td class="dim">Durchmesser und Oktave eingeben, um die Gewichtsrange zu berechnen.</td></tr>';
+}
+
+// Werte für Übersicht und Export
+const OV_ROWS = [
+  { label: 'Glockenname', get: (b) => b.name || '', txt: true },
+  { label: 'Giesser', get: (b) => b.giesser || '', txt: true },
+  { label: 'Gussjahr', get: (b) => num(b.gussjahr) ?? (b.gussjahr || '') },
+  { label: 'Durchmesser [mm]', get: (b) => num(b.durchmesser) ?? '' },
+  { label: 'Gewicht [kg]', get: (b) => num(b.gewicht) ?? '' },
+  ...['nominal', 'unterton', 'prime', 'terz', 'quinte', 'oktave', 'dezime', 'undezime', 'duodezime', 'doppeloktave'].map((k) => ({
+    label: { quinte: 'Quint' }[k] || PARTIALS.find((p) => p.key === k).label, key: k,
+    get: (b, r) => partialValue(r.rows[k]),
+  })),
+];
+function partialValue(row) {
+  if (!row || row.measured === null) return '';
+  const hz = Math.round(row.measured * 10) / 10;
+  if (state.mode === 'hz') return hz;
+  if (state.mode === 'beides') return row.ton ? `${row.ton} (${hz.toFixed(1)} Hz)` : `${hz.toFixed(1)} Hz`;
+  return row.ton || '';
+}
+function renderOverview() {
+  $('ovA1').textContent = `a′ = ${a1()} Hz`;
+  const cols = Math.max(5, state.g.bells.length);
+  const comp = state.g.bells.map((b) => computeBell(b, a1()));
+  let h = '<thead><tr><th style="text-align:left">Glocke</th>';
+  for (let i = 0; i < cols; i++) h += `<th>${i + 1}</th>`;
+  h += '</tr></thead><tbody>';
+  for (const row of OV_ROWS) {
+    h += `<tr class="${row.key === 'nominal' ? 'nom' : ''}"><th>${row.label}</th>`;
+    for (let i = 0; i < cols; i++) {
+      const b = state.g.bells[i];
+      const v = b ? row.get(b, comp[i]) : '';
+      h += `<td class="${row.txt ? 'txt' : ''}">${esc(typeof v === 'number' && row.key ? v.toFixed(1) : v)}</td>`;
+    }
+    h += '</tr>';
+  }
+  $('ovTable').innerHTML = h + '</tbody>';
+}
+
+function renderSaved() {
+  const ul = $('savedList');
+  $('savedEmpty').hidden = state.saved.length > 0;
+  ul.innerHTML = '';
+  for (const s of state.saved) {
+    const li = document.createElement('li');
+    if (s.id === state.g.id) li.className = 'active';
+    const n = (s.bells || []).length;
+    const when = s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('de-CH') : '';
+    li.innerHTML = `<button type="button" class="saved-open"><strong>${esc(s.name || 'Ohne Namen')}</strong><span>${esc(s.ort ? s.ort + ' · ' : '')}${n} ${n === 1 ? 'Glocke' : 'Glocken'}${when ? ' · ' + when : ''}</span></button><button type="button" class="icon-btn" title="Geläut löschen">Löschen</button>`;
+    li.children[0].onclick = () => openSaved(s);
+    li.children[1].onclick = (e) => armButton(e.currentTarget, 'Sicher?', () => deleteSaved(s));
+    ul.appendChild(li);
+  }
+}
+
+// ===== Eingaben =====
+function onBellInput(e) {
+  const t = e.target;
+  const b = bell();
+  if (t.dataset.f) b.f[t.dataset.f] = t.value;
+  else if (t.dataset.k) b[t.dataset.k] = t.value;
+  else return;
+  setDirty(true);
+  renderComputed();
+  renderOverview();
+  if (t.dataset.k === 'name' || t.dataset.f === 'oktave') renderTabs();
+}
+$('sheet').addEventListener('input', onBellInput);
+$('sheet').addEventListener('change', (e) => { if (e.target.tagName === 'SELECT') onBellInput(e); });
+$('gName').addEventListener('input', (e) => { state.g.name = e.target.value; setDirty(true); });
+$('gOrt').addEventListener('input', (e) => { state.g.ort = e.target.value; setDirty(true); });
+$('gA1').addEventListener('change', (e) => { state.g.a1 = Number(e.target.value); setDirty(true); renderTabs(); renderComputed(); renderOverview(); });
+$('modeSeg').addEventListener('click', (e) => {
+  const m = e.target.dataset.mode; if (!m) return;
+  state.mode = m;
+  [...$('modeSeg').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+  lsSet('gelaeut-mode', m);
+  renderOverview();
+});
+
+// Glocken verwalten
+function moveBell(dir) {
+  const i = state.sel, j = i + dir, arr = state.g.bells;
+  if (j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  state.sel = j; setDirty(true); renderTabs(); renderBellForm(); renderComputed(); renderOverview();
+}
+$('btnLeft').onclick = () => moveBell(-1);
+$('btnRight').onclick = () => moveBell(1);
+$('btnDup').onclick = () => {
+  const c = clone(bell()); c.name = c.name ? c.name + ' (Kopie)' : '';
+  state.g.bells.splice(state.sel + 1, 0, c); state.sel++;
+  setDirty(true); renderTabs(); renderBellForm(); renderComputed(); renderOverview();
+};
+$('btnDel').onclick = (e) => armButton(e.currentTarget, 'Wirklich entfernen?', () => {
+  if (state.g.bells.length < 2) return;
+  state.g.bells.splice(state.sel, 1);
+  state.sel = Math.min(state.sel, state.g.bells.length - 1);
+  setDirty(true); renderTabs(); renderBellForm(); renderComputed(); renderOverview();
+});
+
+// ===== Speicher =====
+function snapshotForSave() {
+  const g = clone(state.g);
+  delete g.demo;
+  return { name: g.name || '', ort: g.ort || '', a1: Number(g.a1) || 435, bells: g.bells, updatedAt: Date.now() };
+}
+function slug(s) { return (s || 'gelaeut').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'gelaeut'; }
+
+async function save() {
+  if (!state.g.name.trim()) { $('gName').focus(); toast('Bitte zuerst einen Namen für das Geläut eingeben.'); return; }
+  const body = snapshotForSave();
+  const id = state.g.id || `${slug(body.name)}-${Date.now().toString(36)}`;
+  try {
+    if (state.store === 'db') {
+      await state.db.collection('gelaeute').doc(id).set(body);
+    } else {
+      const all = lsGet(LS_LOCAL) || {};
+      all[id] = body; lsSet(LS_LOCAL, all);
+      loadLocalList();
+    }
+    state.g.id = id; state.g.demo = false;
+    setDirty(false); renderSaved();
+    toast(`„${body.name}“ gespeichert.`);
+  } catch (err) {
+    const s = $('status');
+    s.textContent = err && err.code === 'quota_exceeded' ? 'Speicher voll – bitte alte Geläute löschen.' : 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+    s.className = 'status err';
+  }
+}
+function openSaved(s) {
+  state.g = { id: s.id, name: s.name || '', ort: s.ort || '', a1: s.a1 || 435, bells: clone(s.bells && s.bells.length ? s.bells : [newBell()]) };
+  state.sel = 0; state.dirty = false;
+  renderAll();
+  toast(`„${s.name || 'Geläut'}“ geladen.`);
+}
+async function deleteSaved(s) {
+  try {
+    if (state.store === 'db') await state.db.collection('gelaeute').doc(s.id).delete();
+    else { const all = lsGet(LS_LOCAL) || {}; delete all[s.id]; lsSet(LS_LOCAL, all); loadLocalList(); }
+    if (state.g.id === s.id) { state.g.id = null; setDirty(true); }
+    renderSaved();
+    toast(`„${s.name || 'Geläut'}“ gelöscht.`);
+  } catch { toast('Löschen fehlgeschlagen.'); }
+}
+function loadLocalList() {
+  const all = lsGet(LS_LOCAL) || {};
+  state.saved = Object.entries(all).map(([id, v]) => ({ id, ...v })).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  renderSaved();
+}
+$('btnSave').onclick = save;
+$('btnNew').onclick = () => { state.g = newGelaeut(); state.sel = 0; state.dirty = false; renderAll(); $('gName').focus(); };
+$('btnDemoClear').onclick = () => $('btnNew').click();
+
+async function initStore() {
+  const pill = $('storePill');
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch { db = null; }
+  if (db) {
+    state.db = db; state.store = 'db';
+    pill.textContent = 'Geläute werden in der Datenbank gespeichert'; pill.className = 'store-pill ok';
+    db.collection('gelaeute').orderBy('updatedAt', 'desc').onSnapshot((snap) => {
+      state.saved = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderSaved();
+    }, () => { pill.textContent = 'Datenbank nicht erreichbar'; pill.className = 'store-pill warn'; });
+  } else {
+    state.store = 'local';
+    pill.textContent = 'Gespeichert auf diesem Gerät'; pill.className = 'store-pill warn';
+    loadLocalList();
+  }
+}
+
+// ===== Datei-Ausgabe =====
+async function offerFile(filename, blob) {
+  let dl = null;
+  try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch { dl = null; }
+  if (dl) {
+    try { await dl.save({ filename, data: blob }); toast(`${filename} gespeichert.`); }
+    catch (e) { if (e && e.code !== 'declined') toast('Download war nicht möglich.'); }
+    return;
+  }
+  // Handy-App (Capacitor): Datei ablegen und über das Teilen-Menü weitergeben
+  const cap = window.Capacitor;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.Plugins.Filesystem) {
+    try {
+      const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+      const w = await cap.Plugins.Filesystem.writeFile({ path: filename, data: b64, directory: 'CACHE' });
+      await cap.Plugins.Share.share({ title: filename, url: w.uri, dialogTitle: 'Datei speichern oder senden' });
+    } catch (e) { if (!String(e && e.message).toLowerCase().includes('cancel')) toast('Datei konnte nicht weitergegeben werden.'); }
+    return;
+  }
+  // Ausserhalb von claude.ai (z. B. selbst gehostet oder als PWA): normaler Browser-Download
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// ===== Excel-Export auf Basis "Glockendaten_Basis.xlsx" =====
+const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const colL = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+const colN = (L) => [...L].reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0);
+
+async function buildXlsx() {
+  const bin = Uint8Array.from(atob(BASIS_B64), (c) => c.charCodeAt(0));
+  const zip = await JSZip.loadAsync(bin);
+  const P = new DOMParser(), S = new XMLSerializer();
+  const sheet = P.parseFromString(await zip.file('xl/worksheets/sheet1.xml').async('string'), 'application/xml');
+  const sst = P.parseFromString(await zip.file('xl/sharedStrings.xml').async('string'), 'application/xml');
+  const table = P.parseFromString(await zip.file('xl/tables/table1.xml').async('string'), 'application/xml');
+
+  const sstRoot = sst.documentElement;
+  const sstIndex = new Map();
+  [...sstRoot.getElementsByTagNameNS(NS, 'si')].forEach((si, i) => sstIndex.set(si.textContent, i));
+  const strIdx = (text) => {
+    if (sstIndex.has(text)) return sstIndex.get(text);
+    const si = sst.createElementNS(NS, 'si'); const t = sst.createElementNS(NS, 't');
+    t.setAttribute('xml:space', 'preserve'); t.textContent = text; si.appendChild(t); sstRoot.appendChild(si);
+    const i = sstIndex.size; sstIndex.set(text, i); return i;
+  };
+
+  const sheetData = sheet.getElementsByTagNameNS(NS, 'sheetData')[0];
+  const rowEl = (r) => {
+    let el = [...sheetData.getElementsByTagNameNS(NS, 'row')].find((x) => Number(x.getAttribute('r')) === r);
+    if (!el) { el = sheet.createElementNS(NS, 'row'); el.setAttribute('r', r); sheetData.appendChild(el); }
+    return el;
+  };
+  const cellEl = (r, c) => {
+    const row = rowEl(r), ref = colL(c) + r;
+    const cells = [...row.getElementsByTagNameNS(NS, 'c')];
+    let el = cells.find((x) => x.getAttribute('r') === ref);
+    if (el) return el;
+    el = sheet.createElementNS(NS, 'c'); el.setAttribute('r', ref);
+    // Stil der letzten Vorlagenspalte (G) übernehmen
+    const tpl = cells.find((x) => x.getAttribute('r') === 'G' + r) || cells[cells.length - 1];
+    if (tpl && tpl.getAttribute('s')) el.setAttribute('s', tpl.getAttribute('s'));
+    const after = cells.find((x) => colN(x.getAttribute('r').replace(/\d+/g, '')) > c);
+    row.insertBefore(el, after || null);
+    return el;
+  };
+  const setCell = (r, c, v) => {
+    const el = cellEl(r, c);
+    while (el.firstChild) el.removeChild(el.firstChild);
+    el.removeAttribute('t');
+    if (v === '' || v === null || v === undefined) return;
+    const vEl = sheet.createElementNS(NS, 'v');
+    if (typeof v === 'number') vEl.textContent = String(v);
+    else { el.setAttribute('t', 's'); vEl.textContent = String(strIdx(String(v))); }
+    el.appendChild(vEl);
+  };
+
+  const g = state.g, n = g.bells.length, cols = Math.max(5, n), lastCol = 2 + cols;
+  setCell(2, 3, `a' = ${a1()}Hz`);
+  const comp = g.bells.map((b) => computeBell(b, a1()));
+  for (let i = 0; i < cols; i++) {
+    const c = 3 + i;
+    setCell(3, c, String(i + 1));
+    OV_ROWS.forEach((row, k) => setCell(4 + k, c, g.bells[i] ? row.get(g.bells[i], comp[i]) : ''));
+  }
+
+  if (cols > 5) {
+    const L = colL(lastCol);
+    sheet.getElementsByTagNameNS(NS, 'dimension')[0]?.setAttribute('ref', `B2:${L}54`);
+    [...sheetData.getElementsByTagNameNS(NS, 'row')].forEach((r) => r.hasAttribute('spans') && r.setAttribute('spans', `2:${lastCol}`));
+    const colDef = [...sheet.getElementsByTagNameNS(NS, 'col')].find((x) => x.getAttribute('min') === '3');
+    if (colDef) colDef.setAttribute('max', String(lastCol));
+    const tRoot = table.documentElement;
+    tRoot.setAttribute('ref', `B3:${L}18`);
+    const af = tRoot.getElementsByTagNameNS(NS, 'autoFilter')[0];
+    af.setAttribute('ref', `B3:${L}18`);
+    const tcs = tRoot.getElementsByTagNameNS(NS, 'tableColumns')[0];
+    const existing = [...tcs.getElementsByTagNameNS(NS, 'tableColumn')];
+    existing.forEach((x) => x.removeAttribute('totalsRowFunction'));
+    for (let i = 6; i <= cols; i++) {
+      const tc = table.createElementNS(NS, 'tableColumn');
+      tc.setAttribute('id', String(i + 1)); tc.setAttribute('name', String(i));
+      tcs.appendChild(tc);
+      const fc = table.createElementNS(NS, 'filterColumn');
+      fc.setAttribute('colId', String(i)); fc.setAttribute('hiddenButton', '1');
+      af.appendChild(fc);
+    }
+    tcs.setAttribute('count', String(cols + 1));
+  }
+  const total = [...sstRoot.getElementsByTagNameNS(NS, 'si')].length;
+  sstRoot.setAttribute('uniqueCount', String(total));
+  sstRoot.setAttribute('count', String(total + 200));
+
+  zip.file('xl/worksheets/sheet1.xml', S.serializeToString(sheet));
+  zip.file('xl/sharedStrings.xml', S.serializeToString(sst));
+  zip.file('xl/tables/table1.xml', S.serializeToString(table));
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', compression: 'DEFLATE' });
+}
+$('btnExport').onclick = async () => {
+  try {
+    const blob = await buildXlsx();
+    const name = slug(state.g.name || 'Geläut').replace(/-/g, '_');
+    await offerFile(`Glockendaten_${name}.xlsx`, blob);
+  } catch (e) { console.error(e); toast('Export fehlgeschlagen.'); }
+};
+
+// JSON sichern / laden
+$('btnJsonOut').onclick = () => {
+  const body = { format: 'gelaeut-erfassung', version: 1, gelaeut: snapshotForSave() };
+  offerFile(`Gelaeut_${slug(state.g.name || 'gelaeut')}.json`, new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }));
+};
+$('jsonIn').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  try {
+    const j = JSON.parse(await file.text());
+    const g = j.gelaeut || j;
+    if (!Array.isArray(g.bells)) throw new Error('format');
+    state.g = { id: null, name: g.name || '', ort: g.ort || '', a1: g.a1 || 435, bells: g.bells.map((b) => ({ ...newBell(), ...b, f: { ...newBell().f, ...(b.f || {}) } })) };
+    state.sel = 0; state.dirty = true; renderAll();
+    toast('Geläut geladen. Mit „Geläut speichern“ in die Liste übernehmen.');
+  } catch { toast('Die Datei ist kein gültiges Geläut (JSON).'); }
+});
+
+// ===== Start =====
+(function start() {
+  const m = lsGet('gelaeut-mode');
+  if (m) { state.mode = m; [...$('modeSeg').children].forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); }
+  const draft = lsGet(LS_DRAFT);
+  if (draft && draft.g && Array.isArray(draft.g.bells) && draft.g.bells.length) {
+    state.g = draft.g; state.sel = Math.min(draft.sel || 0, draft.g.bells.length - 1); state.dirty = !!draft.dirty;
+  } else {
+    state.g = demoGelaeut(); state.sel = 0; state.dirty = false;
+  }
+  renderAll();
+  initStore();
+})();
+
+</script>
+
+<script>
+if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

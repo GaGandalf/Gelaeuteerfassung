@@ -1,0 +1,8 @@
+{
+  "appId": "ch.glocken.gelaeut",
+  "appName": "Geläut-Erfassung",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#f3f4f2"
+  }
+}
