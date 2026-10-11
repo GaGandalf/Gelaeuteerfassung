@@ -20,7 +20,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      - name: Android-SDK prüfen (auf GitHub vorinstalliert)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
       - name: Abhängigkeiten installieren
         run: npm install --no-audit --no-fund
       - name: Android-Projekt erzeugen
