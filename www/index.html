@@ -298,7 +298,7 @@ table { border-collapse: collapse; width: 100%; }
 
       <section class="panel pad" aria-label="Geläut">
         <div class="ghead">
-          <label class="f g-name"><span>Name des Geläuts</span><input class="in" id="gName" placeholder="z. B. Pfarrkirche St. Martin"></label>
+          <label class="f g-name"><span>Kirche / Patrozinium</span><input class="in" id="gName" placeholder="z. B. Pfarrkirche St. Martin"></label>
           <label class="f"><span>Stimmton a′</span>
             <select class="in" id="gA1"><option value="435">435 Hz</option><option value="440">440 Hz</option></select>
           </label>
@@ -306,7 +306,7 @@ table { border-collapse: collapse; width: 100%; }
             <select class="in" id="gLand"><option value="">— bitte wählen —</option><option value="CH">Schweiz</option><option value="DE">Deutschland</option><option value="FR">Frankreich</option><option value="AT">Österreich</option></select>
           </label>
           <label class="f"><span id="gRegionLabel">Kanton</span><select class="in" id="gRegion"></select></label>
-          <label class="f"><span>Ort / Kirche</span><input class="in" id="gOrt" placeholder="z. B. Altdorf"></label>
+          <label class="f"><span>Ort</span><input class="in" id="gOrt" placeholder="z. B. Altdorf"></label>
         </div>
         <div class="gactions">
           <button class="btn primary" id="btnSave" type="button">Geläut speichern</button>
@@ -1345,7 +1345,7 @@ function snapshotForSave() {
 function slug(s) { return (s || 'gelaeut').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'gelaeut'; }
 
 async function save() {
-  if (!state.g.name.trim()) { $('gName').focus(); toast('Bitte zuerst einen Namen für das Geläut eingeben.'); return; }
+  if (!state.g.name.trim()) { $('gName').focus(); toast('Bitte zuerst Kirche / Patrozinium eingeben.'); return; }
   const body = snapshotForSave();
   if (state.store === 'db' && JSON.stringify(body).length > 245000) { toast('Das Geläut ist zu gross zum Speichern. Bitte bei einzelnen Glocken das Spektrum entfernen.'); return; }
   const id = state.g.id || `${slug(body.name)}-${Date.now().toString(36)}`;
