@@ -211,6 +211,8 @@ table { border-collapse: collapse; width: 100%; }
 .ctrl { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: end; }
 .ctrl label { display: grid; gap: 3px; font-size: .72rem; color: var(--muted); font-weight: 500; }
 .ctrl select { border: 1px solid var(--line); background: var(--input); color: var(--ink); border-radius: 5px; padding: 4px 7px; font: inherit; font-size: .86rem; }
+.zoombar { display: inline-flex; gap: 4px; margin-left: auto; padding-bottom: 2px; }
+.zoombar .btn { min-width: 34px; font-family: var(--f-mono); }
 .ctrl .chk { display: flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--ink); padding-bottom: 5px; }
 .wave-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .78rem; color: var(--muted); margin-bottom: 4px; }
 #ka_wave { width: 100%; height: 56px; display: block; touch-action: none; cursor: crosshair; background: var(--soft); border-radius: 4px; }
@@ -345,6 +347,11 @@ table { border-collapse: collapse; width: 100%; }
               <label>Dynamik<select id="ka_range"><option value="60">60 dB</option><option value="90" selected>90 dB</option><option value="120">120 dB</option></select></label>
               <label>Beschriftete Spitzen<select id="ka_labels"><option>5</option><option selected>10</option><option>15</option><option>25</option></select></label>
               <label class="chk"><input type="checkbox" id="ka_snap" checked> Auf Spitzen einrasten</label>
+              <span class="zoombar" role="group" aria-label="Zoom">
+                <button class="btn small" id="ka_zout" type="button" title="Herauszoomen (−)" aria-label="Herauszoomen">−</button>
+                <button class="btn small" id="ka_zin" type="button" title="Hineinzoomen (+)" aria-label="Hineinzoomen">+</button>
+                <button class="btn small" id="ka_zall" type="button" title="Ganzen Bereich zeigen (0)" disabled>Alles zeigen</button>
+              </span>
             </div>
             <div id="ka_waveBox" hidden>
               <div class="wave-head"><span>Ausschnitt: in der Wellenform ziehen, Tippen wählt alles.</span><span id="ka_sel" class="mono"></span></div>
@@ -366,7 +373,7 @@ table { border-collapse: collapse; width: 100%; }
                 <tbody id="ka_peaks"></tbody>
               </table>
             </div>
-            <p class="hint" style="margin:0">Über das Spektrum fahren oder mit dem Finger streichen. Nahe einer Spitze rastet der Cursor ein (durchgezogene Linie), dazwischen zeigt er die freie Stelle (gestrichelt). Klicken oder Loslassen markiert, Pfeiltasten springen von Spitze zu Spitze. Die Zuordnung trägt die Frequenz in die Teiltöne ein.</p>
+            <p class="hint" style="margin:0">Über das Spektrum fahren oder mit dem Finger streichen. Nahe einer Spitze rastet der Cursor ein (durchgezogene Linie), dazwischen zeigt er die freie Stelle (gestrichelt). Klicken oder Loslassen markiert. <b>Zoomen:</b> Mausrad oder zwei Finger auseinanderziehen, Verschieben mit gedrückter Maus oder zwei Fingern, Doppelklick zeigt wieder alles. Tastatur: Pfeile springen von Spitze zu Spitze, + / − zoomen, 0 zeigt alles.</p>
           </div>
         </div>
 
@@ -650,57 +657,99 @@ const Spectrum = (() => {
   return { analyze, findPeaks, dbAt, demoBell, pack, unpack };
 })();
 
-// ===== Darstellung =====
+// ===== Darstellung (mit Zoom) =====
 function SpectrumChart(canvas, opts) {
   const S = {
     spec: null, peaks: [], allPeaks: [], log: true, fmin: 20, fmax: 10000, range: 90, labels: 10,
-    snap: true, hover: null, pinned: null, a1: 435, onPin: null, onHover: null, ...opts,
+    snap: true, hover: null, pinned: null, a1: 435, onPin: null, onHover: null, onView: null, ...opts,
   };
   const ctx = canvas.getContext('2d');
   const PAD = { l: 44, r: 12, t: 30, b: 26 };
   const css = (n) => getComputedStyle(canvas).getPropertyValue(n).trim();
   let W = 0, H = 0, dpr = 1;
+  let V = null; // sichtbarer Bereich [u0, u1] in Achsen-Einheiten (log f oder f); null = ganzer Bereich
 
+  const U = (f) => (S.log ? Math.log(f) : f), F = (u) => (S.log ? Math.exp(u) : u);
+  const base = () => [U(S.fmin), U(S.fmax)];
+  const view = () => V || base();
+  const minSpan = () => (S.log ? Math.log(1.01) : 2);
   const plotW = () => W - PAD.l - PAD.r, plotH = () => H - PAD.t - PAD.b;
-  const xOf = (f) => PAD.l + (S.log ? (Math.log(f) - Math.log(S.fmin)) / (Math.log(S.fmax) - Math.log(S.fmin)) : (f - S.fmin) / (S.fmax - S.fmin)) * plotW();
-  const fOf = (x) => { const t = (x - PAD.l) / plotW(); return S.log ? Math.exp(Math.log(S.fmin) + t * (Math.log(S.fmax) - Math.log(S.fmin))) : S.fmin + t * (S.fmax - S.fmin); };
+  const xOf = (f) => { const [u0, u1] = view(); return PAD.l + ((U(f) - u0) / (u1 - u0)) * plotW(); };
+  const uOfX = (x) => { const [u0, u1] = view(); return u0 + ((x - PAD.l) / plotW()) * (u1 - u0); };
+  const fOf = (x) => F(uOfX(x));
+  const vmin = () => F(view()[0]), vmax = () => F(view()[1]);
   const yOf = (d) => PAD.t + (Math.min(0, Math.max(-S.range, d)) / -S.range) * plotH();
   const toneOf = (f) => { if (typeof nearestIdx !== 'function') return ''; const i = nearestIdx(f, S.a1); return i === null ? '' : DATA.tones[i]; };
-  const fmtF = (f) => (f >= 1000 ? f.toFixed(1) : f.toFixed(1));
+  const fmtF = (f) => f.toFixed(1);
+  const zoomed = () => !!V;
+
+  // --- Zoom ---
+  function setView(u0, u1) {
+    const [b0, b1] = base();
+    let span = Math.min(b1 - b0, Math.max(minSpan(), u1 - u0));
+    if (span >= (b1 - b0) - 1e-9) { V = null; } else {
+      u0 = Math.max(b0, Math.min(u0, b1 - span));
+      V = [u0, u0 + span];
+    }
+    draw(); S.onView && S.onView(info());
+  }
+  function zoomAt(u, factor) { const [u0, u1] = view(), span = (u1 - u0) * factor; setView(u - (u - u0) * (span / (u1 - u0)), u - (u - u0) * (span / (u1 - u0)) + span); }
+  function zoomCenter(factor) {
+    const [u0, u1] = view();
+    const c = S.pinned && S.pinned.f >= vmin() && S.pinned.f <= vmax() ? U(S.pinned.f) : (u0 + u1) / 2;
+    zoomAt(c, factor);
+  }
+  function resetZoom() { V = null; draw(); S.onView && S.onView(info()); }
+  function info() { const [b0, b1] = base(), [u0, u1] = view(); return { zoomed: zoomed(), factor: (b1 - b0) / (u1 - u0), from: F(u0), to: F(u1) }; }
 
   function resize() {
     dpr = window.devicePixelRatio || 1;
     const r = canvas.getBoundingClientRect();
     W = r.width; H = r.height;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    pickLabels(); draw();
+    draw();
   }
-
   function setData(spec, peaks) {
     S.spec = spec;
     S.allPeaks = peaks || (spec ? Spectrum.findPeaks(spec, 15, Math.min(spec.sr / 2 - spec.df * 3, 22000), 3) : []);
-    S.pinned = null; S.hover = null;
-    pickLabels();
-    draw();
+    S.pinned = null; S.hover = null; V = null;
+    pickLabels(); draw(); S.onView && S.onView(info());
   }
   function pickLabels() {
     const vis = S.allPeaks.filter((p) => p.f >= S.fmin && p.f <= S.fmax && p.prom >= 6);
     S.peaks = vis.sort((a, b) => b.db - a.db).slice(0, S.labels);
   }
-  function set(o) { Object.assign(S, o); pickLabels(); draw(); }
+  function set(o) {
+    const resetV = ('log' in o && o.log !== S.log) || ('fmin' in o && +o.fmin !== S.fmin) || ('fmax' in o && +o.fmax !== S.fmax);
+    Object.assign(S, o); if (resetV) V = null;
+    pickLabels(); draw(); if (resetV && S.onView) S.onView(info());
+  }
 
+  // --- Achsenteilung, passt sich dem Zoom an ---
+  function niceStep(span, target) {
+    const raw = span / Math.max(1, target), p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
+    return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+  }
   function ticks() {
-    const major = [], minor = [];
-    if (S.log) {
+    const major = [], minor = [], a = vmin(), b = vmax();
+    if (S.log && b / a >= 6) {
       for (let dec = 1; dec <= 100000; dec *= 10) for (let m = 1; m < 10; m++) {
-        const f = m * dec; if (f < S.fmin || f > S.fmax) continue;
+        const f = m * dec; if (f < a || f > b) continue;
         (m === 1 || m === 2 || m === 5 ? major : minor).push(f);
       }
-    } else {
-      const span = S.fmax - S.fmin, step = span > 8000 ? 1000 : span > 4000 ? 500 : span > 1500 ? 250 : 100;
-      for (let f = Math.ceil(S.fmin / step) * step; f <= S.fmax; f += step) major.push(f);
+      return { major, minor, step: 1 };
     }
-    return { major, minor };
+    const step = niceStep(b - a, Math.max(3, Math.floor(plotW() / 85)));
+    for (let f = Math.ceil(a / step) * step; f <= b + 1e-9; f += step) major.push(+f.toFixed(6));
+    const ms = step / 5;
+    for (let f = Math.ceil(a / ms) * ms; f <= b; f += ms) if (Math.abs(f / step - Math.round(f / step)) > 1e-6) minor.push(f);
+    return { major, minor, step };
+  }
+  function tickLabel(f, step) {
+    if (step >= 1000 && f % 1000 === 0) return f / 1000 + 'k';
+    if (step === 1 && f >= 1000 && f % 1000 === 0) return f / 1000 + 'k';
+    const dec = step < 1 ? Math.min(2, Math.ceil(-Math.log10(step))) : 0;
+    return f.toFixed(dec);
   }
 
   function draw() {
@@ -709,8 +758,7 @@ function SpectrumChart(canvas, opts) {
     ctx.clearRect(0, 0, W, H);
     const C = { grid: css('--grid'), axis: css('--muted'), ink: css('--ink'), fill: css('--spec'), line: css('--spec-line'), mark: css('--mark'), pin: css('--pin'), panel: css('--panel') };
     ctx.font = '11px ' + css('--f-mono');
-    // Raster
-    const { major, minor } = ticks();
+    const { major, minor, step } = ticks();
     ctx.lineWidth = 1;
     ctx.strokeStyle = C.grid; ctx.globalAlpha = 0.5;
     for (const f of minor) { const x = Math.round(xOf(f)) + 0.5; ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, H - PAD.b); ctx.stroke(); }
@@ -719,35 +767,44 @@ function SpectrumChart(canvas, opts) {
     for (const f of major) {
       const x = Math.round(xOf(f)) + 0.5;
       ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, H - PAD.b); ctx.stroke();
-      ctx.fillText(f >= 1000 ? f / 1000 + 'k' : String(f), x, H - PAD.b + 6);
+      ctx.fillText(tickLabel(f, step), x, H - PAD.b + 6);
     }
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    const step = S.range > 60 ? 20 : 10;
-    for (let d = 0; d >= -S.range; d -= step) {
+    const ystep = S.range > 60 ? 20 : 10;
+    for (let d = 0; d >= -S.range; d -= ystep) {
       const y = Math.round(yOf(d)) + 0.5;
       ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
       ctx.fillText(d + (d === 0 ? ' dB' : ''), PAD.l - 6, y);
     }
+    if (zoomed()) {
+      const z = info();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillStyle = C.axis; ctx.font = '600 11px ' + css('--f-mono');
+      ctx.fillText(`Zoom ×${z.factor < 10 ? z.factor.toFixed(1) : Math.round(z.factor)} · ${z.from.toFixed(z.to - z.from < 50 ? 1 : 0)}–${z.to.toFixed(z.to - z.from < 50 ? 1 : 0)} Hz`, W - PAD.r, 6);
+    }
     if (!S.spec) return;
-    // Spektrum (pro Pixelspalte das Maximum der Frequenzbins)
-    const { db, df } = S.spec, x0 = PAD.l, x1 = W - PAD.r, base = H - PAD.b;
-    ctx.beginPath(); ctx.moveTo(x0, base);
+    // Spektrum: je Pixelspalte das Maximum der Frequenzbins, beim Hineinzoomen interpoliert
+    const { db, df } = S.spec, x0 = PAD.l, x1 = W - PAD.r, bottom = H - PAD.b;
+    ctx.save(); ctx.beginPath(); ctx.rect(PAD.l, 0, plotW(), H); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(x0, bottom);
+    const off = S.spec.off || 0;
     for (let x = x0; x <= x1; x++) {
       const fa = fOf(x - 0.5), fb = fOf(x + 0.5);
       let v;
-      const off = S.spec.off || 0, ka = Math.max(0, Math.floor((fa - off) / df)), kb = Math.min(db.length - 1, Math.ceil((fb - off) / df));
-      if (kb - ka >= 2) { v = -300; for (let k = ka; k <= kb; k++) if (db[k] > v) v = db[k]; }
+      const ka = Math.max(0, Math.ceil((fa - off) / df)), kb = Math.min(db.length - 1, Math.floor((fb - off) / df));
+      if ((fb - fa) / df >= 1 && kb >= ka) { v = -300; for (let k = ka; k <= kb; k++) if (db[k] > v) v = db[k]; }
       else v = Spectrum.dbAt(S.spec, fOf(x));
       ctx.lineTo(x, yOf(v));
     }
-    ctx.lineTo(x1, base); ctx.closePath();
+    ctx.lineTo(x1, bottom); ctx.closePath();
     ctx.fillStyle = C.fill; ctx.fill();
     ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
-    // Beschriftung der höchsten Spitzen
+    // Beschriftung: die höchsten Spitzen im sichtbaren Bereich
+    const a = vmin(), b = vmax();
+    const vis = S.allPeaks.filter((p) => p.f >= a && p.f <= b && p.f >= S.fmin && p.f <= S.fmax && p.prom >= (zoomed() ? 3 : 6)).sort((p, q) => q.db - p.db);
+    const cap = Math.min(zoomed() ? Math.max(S.labels, 8) : S.labels, Math.max(4, Math.floor(plotW() / 55)));
     const boxes = [];
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.font = '600 11px ' + css('--f-mono');
-    const cap = Math.max(4, Math.floor(plotW() / 55)); // auf schmalen Bildschirmen weniger Beschriftungen
-    for (const p of S.peaks.slice(0, cap)) {
+    for (const p of vis.slice(0, cap)) {
       const x = xOf(p.f), y = yOf(p.db);
       const txt = fmtF(p.f), w = ctx.measureText(txt).width + 6;
       let ly = y - 6, ok = false;
@@ -763,9 +820,9 @@ function SpectrumChart(canvas, opts) {
       ctx.fillStyle = C.panel; ctx.globalAlpha = .82; ctx.fillRect(x - w / 2, ly - 13, w, 13); ctx.globalAlpha = 1;
       ctx.fillStyle = C.mark; ctx.fillText(txt, x, ly);
     }
-    // Markierung und Cursor
-    if (S.pinned) cursor(S.pinned, C.pin, false);
+    if (S.pinned && S.pinned.f >= a && S.pinned.f <= b) cursor(S.pinned, C.pin, false);
     if (S.hover) cursor(S.hover, C.ink, true);
+    ctx.restore();
   }
 
   function cursor(c, color, withBox) {
@@ -795,10 +852,10 @@ function SpectrumChart(canvas, opts) {
     const r = canvas.getBoundingClientRect(), x = Math.min(Math.max(clientX - r.left, PAD.l), W - PAD.r);
     const f = fOf(x);
     if (S.snap) {
-      const rad = touch ? 16 : 9;
+      const rad = touch ? 16 : 9, a = vmin(), b = vmax();
       let best = null, bd = rad;
       for (const p of S.allPeaks) {
-        if (p.f < S.fmin || p.f > S.fmax) continue;
+        if (p.f < a || p.f > b) continue;
         const d = Math.abs(xOf(p.f) - x);
         if (d < bd || (best && d === bd && p.db > best.db)) { bd = d; best = p; }
       }
@@ -806,36 +863,93 @@ function SpectrumChart(canvas, opts) {
     }
     return { f, db: Spectrum.dbAt(S.spec, f), snapped: false };
   }
-  let down = false;
+
+  // --- Zeiger-Gesten: Maus (bewegen, ziehen = verschieben, Rad = zoomen), Finger (streichen, zwei Finger = zoomen/verschieben) ---
+  const pts = new Map();
+  let mode = null, start = null;
+  const localX = (e) => e.clientX - canvas.getBoundingClientRect().left;
+  const hover = (c) => { S.hover = c; draw(); S.onHover && S.onHover(c); };
+  function pinchState() {
+    const [p, q] = [...pts.values()];
+    return { dist: Math.max(10, Math.abs(p.x - q.x)), mid: (p.x + q.x) / 2 };
+  }
   canvas.addEventListener('pointerdown', (e) => {
-    down = true; try { canvas.setPointerCapture(e.pointerId); } catch {}
-    S.hover = locate(e.clientX, e.pointerType !== 'mouse'); draw(); S.onHover && S.onHover(S.hover);
+    try { canvas.setPointerCapture(e.pointerId); } catch {}
+    pts.set(e.pointerId, { x: localX(e) });
+    if (pts.size === 2) {
+      const ps = pinchState(), [u0, u1] = view();
+      mode = 'pinch'; start = { ...ps, span: u1 - u0, uMid: uOfX(ps.mid) };
+      hover(null); return;
+    }
+    if (pts.size > 2) return;
+    if (e.pointerType === 'mouse') { mode = 'mouse'; start = { x: localX(e), view: view(), moved: false }; }
+    else { mode = 'scrub'; hover(locate(e.clientX, true)); }
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' && !down) return;
-    S.hover = locate(e.clientX, e.pointerType !== 'mouse'); draw(); S.onHover && S.onHover(S.hover);
+    if (pts.has(e.pointerId)) pts.get(e.pointerId).x = localX(e);
+    if (mode === 'pinch' && pts.size >= 2) {
+      const ps = pinchState(), span = start.span * (start.dist / ps.dist);
+      const u0 = start.uMid - ((ps.mid - PAD.l) / plotW()) * span;
+      setView(u0, u0 + span); return;
+    }
+    if (mode === 'mouse') {
+      const dx = localX(e) - start.x;
+      if (Math.abs(dx) > 4) start.moved = true;
+      if (start.moved) {
+        const [u0, u1] = start.view, du = (dx / plotW()) * (u1 - u0);
+        canvas.style.cursor = 'grabbing'; setView(u0 - du, u1 - du); S.hover = null; return;
+      }
+    }
+    if (mode === 'scrub' || e.pointerType === 'mouse') hover(locate(e.clientX, e.pointerType !== 'mouse'));
   });
-  canvas.addEventListener('pointerup', (e) => {
-    down = false;
-    const c = locate(e.clientX, e.pointerType !== 'mouse');
-    if (c) { S.pinned = c; S.onPin && S.onPin(c); }
+  function end(e, cancelled) {
+    pts.delete(e.pointerId);
+    if (mode === 'pinch') { if (pts.size === 0) mode = null; return; }
+    if (!cancelled && (mode === 'scrub' || (mode === 'mouse' && !start.moved))) {
+      const c = locate(e.clientX, e.pointerType !== 'mouse');
+      if (c) { S.pinned = c; S.onPin && S.onPin(c); }
+    }
     if (e.pointerType !== 'mouse') S.hover = null;
-    draw();
-  });
-  canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { S.hover = null; draw(); S.onHover && S.onHover(null); } });
-  canvas.addEventListener('pointercancel', () => { down = false; S.hover = null; draw(); });
-  // Tastatur: Pfeile springen von Spitze zu Spitze
+    canvas.style.cursor = '';
+    mode = null; draw();
+  }
+  canvas.addEventListener('pointerup', (e) => end(e, false));
+  canvas.addEventListener('pointercancel', (e) => end(e, true));
+  canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && mode !== 'mouse') hover(null); });
+  canvas.addEventListener('wheel', (e) => {
+    if (!S.spec) return;
+    e.preventDefault();
+    const d = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
+    zoomAt(uOfX(Math.min(Math.max(localX(e), PAD.l), W - PAD.r)), Math.exp(d * 0.0015));
+    if (S.hover) hover(locate(e.clientX, false));
+  }, { passive: false });
+  canvas.addEventListener('dblclick', () => resetZoom());
+  // Tastatur: Pfeile springen von Spitze zu Spitze, + / − zoomen, 0 zeigt alles
   canvas.addEventListener('keydown', (e) => {
-    if (!S.spec || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    if (!S.spec) return;
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomCenter(0.5); return; }
+    if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomCenter(2); return; }
+    if (e.key === '0') { e.preventDefault(); resetZoom(); return; }
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
     e.preventDefault();
     const vis = S.allPeaks.filter((p) => p.f >= S.fmin && p.f <= S.fmax && p.prom >= 6).sort((a, b) => a.f - b.f);
     if (!vis.length) return;
     const cur = S.pinned ? S.pinned.f : (e.key === 'ArrowRight' ? 0 : Infinity);
     const nx = e.key === 'ArrowRight' ? vis.find((p) => p.f > cur + 1e-6) : [...vis].reverse().find((p) => p.f < cur - 1e-6);
-    if (nx) { S.pinned = { f: nx.f, db: nx.db, snapped: true }; S.onPin && S.onPin(S.pinned); draw(); }
+    if (nx) {
+      S.pinned = { f: nx.f, db: nx.db, snapped: true }; S.onPin && S.onPin(S.pinned);
+      if (V && (nx.f < vmin() || nx.f > vmax())) { const [u0, u1] = view(), sp = u1 - u0; setView(U(nx.f) - sp / 2, U(nx.f) + sp / 2); }
+      else draw();
+    }
   });
   new ResizeObserver(resize).observe(canvas);
-  return { setData, set, draw, state: S, pin(p) { S.pinned = { f: p.f, db: p.db, snapped: true }; draw(); } };
+  return {
+    setData, set, draw, state: S, zoomIn: () => zoomCenter(0.5), zoomOut: () => zoomCenter(2), resetZoom,
+    pin(p) {
+      S.pinned = { f: p.f, db: p.db, snapped: true };
+      if (V && (p.f < vmin() || p.f > vmax())) { const [u0, u1] = view(), sp = u1 - u0; setView(U(p.f) - sp / 2, U(p.f) + sp / 2); } else draw();
+    },
+  };
 }
 
 // ===== Wellenform mit Bereichsauswahl =====
@@ -1372,7 +1486,11 @@ const KA = (() => {
       $('ka_ton').textContent = c ? tone(c.f) : '—';
     },
     onPin(c) { $('ka_pin').textContent = c.f.toFixed(1) + ' Hz'; $('ka_pinT').textContent = tone(c.f); markRow(c.f); },
+    onView(z) { $('ka_zall').disabled = !z.zoomed; },
   });
+  $('ka_zin').onclick = () => chart.zoomIn();
+  $('ka_zout').onclick = () => chart.zoomOut();
+  $('ka_zall').onclick = () => chart.resetZoom();
   const wave = WaveStrip($('ka_wave'), () => analyze());
 
   function view() {
