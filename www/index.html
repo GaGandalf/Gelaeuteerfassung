@@ -545,6 +545,15 @@ function computeBell(bell, a1) {
   return { rows, rs, schlagton, autoSchlag, ripKg, ripGroup, ripD, range, klasse, I };
 }
 
+// Anzeige der Tonnamen mit Oktavstrichen: gis0/as0 → gis°/as°, g1 → g', g2 → g'', A1 → A₁
+function tn(name) {
+  if (!name) return '';
+  return String(name).replace(/([A-Za-z]+)(\d)/g, (m, n, d) => {
+    if (n[0] === n[0].toUpperCase()) return n + (d === '1' ? '₁' : d === '2' ? '₂' : d === '0' ? '' : d);
+    return n + (d === '0' ? '°' : "'".repeat(Number(d)));
+  });
+}
+
 
 // ===== Spektrum-Analyse (wie Audacity "Frequenzanalyse": Spektrum, Hann-Fenster) =====
 const Spectrum = (() => {
@@ -681,7 +690,7 @@ function SpectrumChart(canvas, opts) {
   const fOf = (x) => F(uOfX(x));
   const vmin = () => F(view()[0]), vmax = () => F(view()[1]);
   const yOf = (d) => PAD.t + (Math.min(0, Math.max(-S.range, d)) / -S.range) * plotH();
-  const toneOf = (f) => { if (typeof nearestIdx !== 'function') return ''; const i = nearestIdx(f, S.a1); return i === null ? '' : DATA.tones[i]; };
+  const toneOf = (f) => { if (typeof nearestIdx !== 'function') return ''; const i = nearestIdx(f, S.a1); return i === null ? '' : (typeof tn === 'function' ? tn(DATA.tones[i]) : DATA.tones[i]); };
   const fmtF = (f) => f.toFixed(1);
   const zoomed = () => !!V;
 
@@ -1089,7 +1098,7 @@ function renderTabs() {
     const t = document.createElement('button');
     t.type = 'button'; t.className = 'tab'; t.setAttribute('role', 'tab');
     t.setAttribute('aria-selected', String(i === state.sel));
-    t.innerHTML = `<b>${i + 1}</b><span>${esc(b.name || 'Ohne Namen')}</span>${r.rows.nominal.ton ? `<small>${esc(r.rows.nominal.ton)}</small>` : ''}`;
+    t.innerHTML = `<b>${i + 1}</b><span>${esc(b.name || 'Ohne Namen')}</span>${r.rows.nominal.ton ? `<small>${esc(tn(r.rows.nominal.ton))}</small>` : ''}`;
     t.onclick = () => { state.sel = i; renderTabs(); renderBellForm(); renderComputed(); lsSet(LS_DRAFT, { g: state.g, sel: state.sel, dirty: state.dirty }); };
     el.appendChild(t);
   });
@@ -1133,16 +1142,16 @@ function renderComputed() {
         d.innerHTML = `<span class="dev ${a === 0 ? 'z' : a <= 4 ? 's' : 'l'}">${row.dev > 0 ? '+' : row.dev < 0 ? '−' : '±'}${a}</span>`;
       }
     }
-    $(`c_${p.key}_t`).textContent = row.ton || '—';
-    $(`c_${p.key}_rt`).textContent = row.refTon || '—';
-    $(`c_${p.key}_mr`).textContent = row.refTon ? 'Ref. ' + row.refTon : '';
+    $(`c_${p.key}_t`).textContent = tn(row.ton) || '—';
+    $(`c_${p.key}_rt`).textContent = tn(row.refTon) || '—';
+    $(`c_${p.key}_mr`).textContent = row.refTon ? 'Ref. ' + tn(row.refTon) : '';
     $(`c_${p.key}_rh`).textContent = fmt(row.refHz, 2);
   }
   // Schlagton-Auswahl
   const sel = $('b_schlagton');
   const auto = DATA.rip.tones.includes(r.autoSchlag) ? r.autoSchlag : '';
-  sel.innerHTML = `<option value="">${auto ? `automatisch (${esc(auto)})` : 'automatisch (aus Nominal)'}</option>` +
-    DATA.rip.tones.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  sel.innerHTML = `<option value="">${auto ? `automatisch (${esc(tn(auto))})` : 'automatisch (aus Nominal)'}</option>` +
+    DATA.rip.tones.map((t) => `<option value="${esc(t)}">${esc(tn(t))}</option>`).join('');
   sel.value = b.schlagton || '';
   $('o_rs').textContent = r.rs === null ? '—' : r.rs.toFixed(2);
   $('o_klasse').textContent = r.klasse || '—';
@@ -1172,8 +1181,8 @@ function partialValue(row) {
   if (!row || row.measured === null) return '';
   const hz = Math.round(row.measured * 10) / 10;
   if (state.mode === 'hz') return hz;
-  if (state.mode === 'beides') return row.ton ? `${row.ton} (${hz.toFixed(1)} Hz)` : `${hz.toFixed(1)} Hz`;
-  return row.ton || '';
+  if (state.mode === 'beides') return row.ton ? `${tn(row.ton)} (${hz.toFixed(1)} Hz)` : `${hz.toFixed(1)} Hz`;
+  return tn(row.ton) || '';
 }
 function renderOverview() {
   $('ovA1').textContent = `a′ = ${a1()} Hz`;
@@ -1457,24 +1466,14 @@ $('btnExport').onclick = async () => {
 
 
 // ===== Text-Export (z. B. für Mitteilungen) =====
-// Ton in Glockenschreibweise: Oktave als ° ' '' …, Vorzeichen-Namen wie in Glockenlisten üblich (cis, es, fis, as, b)
-const ENH = { 'cis/des': 'cis', 'dis/es': 'es', 'fis/ges': 'fis', 'gis/as': 'as', 'ais/b': 'b' };
+// Ton in Glockenschreibweise: Oktave als ° ' '' …, Doppelnamen bleiben (cis'/des')
 function toneLabel(name) {
   if (!name) return '';
   const first = name.split(';')[0].trim();
   const m = first.match(/^(\S+)(?:\s+([+-]\d+))?$/);
-  if (!m) return first;
-  const notePart = m[1], dev = m[2];
-  const om = notePart.match(/(\d)$/), oct = om ? om[1] : '';
-  const note = notePart.replace(/\d/g, '');
-  const upper = note[0] === note[0].toUpperCase();
-  const key = note.toLowerCase();
-  let base = ENH[key] || key;
-  let mark;
-  if (upper) { base = base[0].toUpperCase() + base.slice(1); mark = oct === '1' ? '₁' : oct === '2' ? '₂' : ''; }
-  else mark = oct === '0' ? '°' : "'".repeat(Number(oct || 0));
-  const d = dev ? Number(dev) : 0;
-  return `${base}${mark} ${d > 0 ? '+' + d : d < 0 ? '-' + Math.abs(d) : '±0'}`;
+  if (!m) return tn(first);
+  const d = m[2] ? Number(m[2]) : 0;
+  return `${tn(m[1])} ${d > 0 ? '+' + d : d < 0 ? '-' + Math.abs(d) : '±0'}`;
 }
 const chNum = (n) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
 function roundKg(v) { const s = v < 100 ? 5 : v < 1000 ? 10 : 50; return Math.round(v / s) * s; }
@@ -1538,7 +1537,7 @@ const KA = (() => {
   const audio = new WeakMap(); // Aufnahme der aktuellen Sitzung je Glocke
   let ac = null, src = null;
   const prefKey = 'gelaeut-ka-view';
-  const tone = (f) => { const i = nearestIdx(f, a1()); return i === null ? '' : DATA.tones[i]; };
+  const tone = (f) => { const i = nearestIdx(f, a1()); return i === null ? '' : tn(DATA.tones[i]); };
   const chart = SpectrumChart($('ka_chart'), {
     onHover(c) {
       $('ka_cur').textContent = c ? c.f.toFixed(1) + ' Hz' : '—';
