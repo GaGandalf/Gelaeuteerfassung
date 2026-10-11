@@ -87,7 +87,16 @@ button { cursor: pointer; }
 .side { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
 @media (max-width: 900px) { .side { position: static; } }
 .side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
-.saved-list { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; max-height: 60vh; overflow: auto; }
+.saved-tree { padding: 6px; max-height: 64vh; overflow: auto; display: grid; gap: 2px; }
+.saved-tree details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 5px; font-weight: 600; }
+.saved-tree details > summary::-webkit-details-marker { display: none; }
+.saved-tree details > summary::before { content: ""; width: 0; height: 0; border-left: 5px solid var(--muted); border-top: 4px solid transparent; border-bottom: 4px solid transparent; transition: transform .15s; flex: none; }
+.saved-tree details[open] > summary::before { transform: rotate(90deg); }
+.saved-tree details > summary:hover { background: var(--soft); }
+.saved-tree summary .cnt { margin-left: auto; font-family: var(--f-mono); font-size: .74rem; color: var(--muted); font-weight: 500; background: var(--soft); border-radius: 99px; padding: 1px 7px; }
+.saved-tree .lvl2 { margin-left: 14px; }
+.saved-tree .lvl2 > summary { font-weight: 500; font-size: .92rem; }
+.saved-list { list-style: none; margin: 0 0 4px 14px; padding: 0; display: grid; gap: 2px; }
 .saved-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-radius: 5px; }
 .saved-list li.active { background: var(--bronze-soft); }
 .saved-open { text-align: left; background: none; border: 0; padding: 8px 10px; min-width: 0; border-radius: 5px; }
@@ -124,8 +133,9 @@ label.f > span { font-size: .78rem; color: var(--muted); font-weight: 500; }
 .unit .in { padding-right: 38px; }
 .unit em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: .8rem; pointer-events: none; }
 
-.ghead { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 120px; gap: 12px; }
-@media (max-width: 640px) { .ghead { grid-template-columns: minmax(0, 1fr); } }
+.ghead { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ghead .g-name { grid-column: span 2; }
+@media (max-width: 640px) { .ghead { grid-template-columns: minmax(0, 1fr); } .ghead .g-name { grid-column: auto; } }
 .gactions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .gactions .grow { flex: 1; }
 .status { font-size: .84rem; color: var(--muted); }
@@ -271,7 +281,7 @@ table { border-collapse: collapse; width: 100%; }
         <h2>Geläute</h2>
         <button class="btn small" id="btnNew" type="button">+ Neues Geläut</button>
       </div>
-      <ul class="saved-list" id="savedList"></ul>
+      <div class="saved-tree" id="savedList"></div>
       <div class="empty" id="savedEmpty">Noch keine Geläute gespeichert. Erfassen Sie rechts ein Geläut und klicken Sie auf „Geläut speichern“.</div>
       <div class="side-foot">
         <button class="btn small ghost" id="btnJsonOut" type="button">Als JSON sichern</button>
@@ -288,11 +298,15 @@ table { border-collapse: collapse; width: 100%; }
 
       <section class="panel pad" aria-label="Geläut">
         <div class="ghead">
-          <label class="f"><span>Name des Geläuts</span><input class="in" id="gName" placeholder="z. B. Pfarrkirche St. Martin"></label>
-          <label class="f"><span>Ort / Kirche</span><input class="in" id="gOrt" placeholder="z. B. Altdorf UR"></label>
+          <label class="f g-name"><span>Name des Geläuts</span><input class="in" id="gName" placeholder="z. B. Pfarrkirche St. Martin"></label>
           <label class="f"><span>Stimmton a′</span>
             <select class="in" id="gA1"><option value="435">435 Hz</option><option value="440">440 Hz</option></select>
           </label>
+          <label class="f"><span>Land</span>
+            <select class="in" id="gLand"><option value="">— bitte wählen —</option><option value="CH">Schweiz</option><option value="DE">Deutschland</option><option value="FR">Frankreich</option><option value="AT">Österreich</option></select>
+          </label>
+          <label class="f"><span id="gRegionLabel">Kanton</span><select class="in" id="gRegion"></select></label>
+          <label class="f"><span>Ort / Kirche</span><input class="in" id="gOrt" placeholder="z. B. Altdorf"></label>
         </div>
         <div class="gactions">
           <button class="btn primary" id="btnSave" type="button">Geläut speichern</button>
@@ -1025,7 +1039,7 @@ function newBell() {
   return { name: '', gussjahr: '', giesser: '', durchmesser: '', gewicht: '', korrektur: '1', schlagton: '', f: Object.fromEntries(PKEYS.map((k) => [k, ''])) };
 }
 function newGelaeut() {
-  return { id: null, name: '', ort: '', a1: 435, bells: [newBell()] };
+  return { id: null, name: '', land: 'CH', region: '', ort: '', a1: 435, bells: [newBell()] };
 }
 function demoGelaeut() {
   const base = { unterton: 193.2, prime: 389.1, terz: 462.5, quinte: 578, oktave: 776.4, dezime: 979, undezime: 1031, duodezime: 1166, doppeloktave: 1556 };
@@ -1036,7 +1050,7 @@ function demoGelaeut() {
     return b;
   };
   return {
-    id: null, demo: true, name: 'Beispiel-Geläut', ort: 'Beispielort', a1: 435,
+    id: null, demo: true, name: 'Beispiel-Geläut', land: 'CH', region: 'Uri', ort: 'Beispielort', a1: 435,
     bells: [
       mk('Grosse Glocke', 1898, 1, 1110, {}),
       mk('Mittlere Glocke', 1898, Math.pow(2, 2 / 12), 985, { terz: 0.996, quinte: 1.004 }),
@@ -1080,10 +1094,30 @@ function setDirty(d) {
   lsSet(LS_DRAFT, { g: state.g, sel: state.sel, dirty: state.dirty });
 }
 
+
+// ===== Länder und Regionen =====
+const LAENDER = {
+  CH: { name: 'Schweiz', label: 'Kanton', regionen: ['Aargau', 'Appenzell Ausserrhoden', 'Appenzell Innerrhoden', 'Basel-Landschaft', 'Basel-Stadt', 'Bern', 'Freiburg', 'Genf', 'Glarus', 'Graubünden', 'Jura', 'Luzern', 'Neuenburg', 'Nidwalden', 'Obwalden', 'Schaffhausen', 'Schwyz', 'Solothurn', 'St. Gallen', 'Tessin', 'Thurgau', 'Uri', 'Waadt', 'Wallis', 'Zug', 'Zürich'] },
+  DE: { name: 'Deutschland', label: 'Bundesland', regionen: ['Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen', 'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen', 'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen', 'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen'] },
+  FR: { name: 'Frankreich', label: 'Departement', regionen: ['01 – Ain', '02 – Aisne', '03 – Allier', '04 – Alpes-de-Haute-Provence', '05 – Hautes-Alpes', '06 – Alpes-Maritimes', '07 – Ardèche', '08 – Ardennes', '09 – Ariège', '10 – Aube', '11 – Aude', '12 – Aveyron', '13 – Bouches-du-Rhône', '14 – Calvados', '15 – Cantal', '16 – Charente', '17 – Charente-Maritime', '18 – Cher', '19 – Corrèze', '2A – Corse-du-Sud', '2B – Haute-Corse', "21 – Côte-d'Or", "22 – Côtes-d'Armor", '23 – Creuse', '24 – Dordogne', '25 – Doubs', '26 – Drôme', '27 – Eure', '28 – Eure-et-Loir', '29 – Finistère', '30 – Gard', '31 – Haute-Garonne', '32 – Gers', '33 – Gironde', '34 – Hérault', '35 – Ille-et-Vilaine', '36 – Indre', '37 – Indre-et-Loire', '38 – Isère', '39 – Jura', '40 – Landes', '41 – Loir-et-Cher', '42 – Loire', '43 – Haute-Loire', '44 – Loire-Atlantique', '45 – Loiret', '46 – Lot', '47 – Lot-et-Garonne', '48 – Lozère', '49 – Maine-et-Loire', '50 – Manche', '51 – Marne', '52 – Haute-Marne', '53 – Mayenne', '54 – Meurthe-et-Moselle', '55 – Meuse', '56 – Morbihan', '57 – Moselle', '58 – Nièvre', '59 – Nord', '60 – Oise', '61 – Orne', '62 – Pas-de-Calais', '63 – Puy-de-Dôme', '64 – Pyrénées-Atlantiques', '65 – Hautes-Pyrénées', '66 – Pyrénées-Orientales', '67 – Bas-Rhin', '68 – Haut-Rhin', '69 – Rhône', '70 – Haute-Saône', '71 – Saône-et-Loire', '72 – Sarthe', '73 – Savoie', '74 – Haute-Savoie', '75 – Paris', '76 – Seine-Maritime', '77 – Seine-et-Marne', '78 – Yvelines', '79 – Deux-Sèvres', '80 – Somme', '81 – Tarn', '82 – Tarn-et-Garonne', '83 – Var', '84 – Vaucluse', '85 – Vendée', '86 – Vienne', '87 – Haute-Vienne', '88 – Vosges', '89 – Yonne', '90 – Territoire de Belfort', '91 – Essonne', '92 – Hauts-de-Seine', '93 – Seine-Saint-Denis', '94 – Val-de-Marne', "95 – Val-d'Oise", '971 – Guadeloupe', '972 – Martinique', '973 – Guyane', '974 – La Réunion', '976 – Mayotte'] },
+  AT: { name: 'Österreich', label: 'Bundesland', regionen: ['Burgenland', 'Kärnten', 'Niederösterreich', 'Oberösterreich', 'Salzburg', 'Steiermark', 'Tirol', 'Vorarlberg', 'Wien'] },
+};
+const LAND_ORDER = ['CH', 'DE', 'FR', 'AT'];
+function fillRegions() {
+  const land = LAENDER[state.g.land];
+  $('gRegionLabel').textContent = land ? land.label : 'Kanton / Bundesland';
+  const sel = $('gRegion');
+  sel.disabled = !land;
+  sel.innerHTML = `<option value="">${land ? '— bitte wählen —' : 'zuerst Land wählen'}</option>` + (land ? land.regionen.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join('') : '');
+  sel.value = land && land.regionen.includes(state.g.region) ? state.g.region : '';
+}
+
 // ===== Rendering =====
 function renderAll() {
   $('gName').value = state.g.name || '';
   $('gOrt').value = state.g.ort || '';
+  $('gLand').value = state.g.land || '';
+  fillRegions();
   $('gA1').value = String(a1());
   $('demoBanner').hidden = !state.g.demo;
   renderTabs(); renderBellForm(); renderComputed(); renderOverview(); renderSaved();
@@ -1203,20 +1237,55 @@ function renderOverview() {
   $('ovTable').innerHTML = h + '</tbody>';
 }
 
+const LS_OPEN = 'gelaeut-tree-open';
 function renderSaved() {
-  const ul = $('savedList');
+  const box = $('savedList');
   $('savedEmpty').hidden = state.saved.length > 0;
-  ul.innerHTML = '';
+  let openSet; try { openSet = new Set(JSON.parse(localStorage.getItem(LS_OPEN)) || []); } catch { openSet = new Set(); }
+  const cur = state.saved.find((s) => s.id === state.g.id);
+  if (cur) { const lk = cur.land || '_'; openSet.add(lk); openSet.add(lk + '|' + (cur.region || '_')); }
+  // Gruppieren: Land → Region → Geläute (alphabetisch)
+  const tree = new Map();
   for (const s of state.saved) {
-    const li = document.createElement('li');
-    if (s.id === state.g.id) li.className = 'active';
-    const n = (s.bells || []).length;
-    const when = s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('de-CH') : '';
-    li.innerHTML = `<button type="button" class="saved-open"><strong>${esc(s.name || 'Ohne Namen')}</strong><span>${esc(s.ort ? s.ort + ' · ' : '')}${n} ${n === 1 ? 'Glocke' : 'Glocken'}${when ? ' · ' + when : ''}</span></button><button type="button" class="icon-btn" title="Geläut löschen">Löschen</button>`;
-    li.children[0].onclick = () => openSaved(s);
-    li.children[1].onclick = (e) => armButton(e.currentTarget, 'Sicher?', () => deleteSaved(s));
-    ul.appendChild(li);
+    const lk = LAENDER[s.land] ? s.land : '_', rk = s.region || '_';
+    if (!tree.has(lk)) tree.set(lk, new Map());
+    const rm = tree.get(lk); if (!rm.has(rk)) rm.set(rk, []);
+    rm.get(rk).push(s);
   }
+  const lands = [...LAND_ORDER.filter((k) => tree.has(k)), ...(tree.has('_') ? ['_'] : [])];
+  const coll = (x, y) => x.localeCompare(y, 'de', { numeric: true });
+  box.innerHTML = '';
+  for (const lk of lands) {
+    const rm = tree.get(lk), total = [...rm.values()].reduce((n, l) => n + l.length, 0);
+    const dl = document.createElement('details'); dl.dataset.key = lk; dl.open = openSet.has(lk);
+    dl.innerHTML = `<summary>${esc(lk === '_' ? 'Ohne Land' : LAENDER[lk].name)}<span class="cnt">${total}</span></summary>`;
+    const regs = [...rm.keys()].sort((x, y) => (x === '_') - (y === '_') || coll(x, y));
+    for (const rk of regs) {
+      const list = rm.get(rk).sort((x, y) => coll(x.name || '', y.name || ''));
+      const dr = document.createElement('details'); dr.className = 'lvl2'; dr.dataset.key = lk + '|' + rk; dr.open = openSet.has(dr.dataset.key);
+      const label = rk === '_' ? (lk === '_' ? 'Ohne Angabe' : `Ohne ${LAENDER[lk].label}`) : rk;
+      dr.innerHTML = `<summary>${esc(label)}<span class="cnt">${list.length}</span></summary>`;
+      const ul = document.createElement('ul'); ul.className = 'saved-list';
+      for (const s of list) {
+        const li = document.createElement('li');
+        if (s.id === state.g.id) li.className = 'active';
+        const n = (s.bells || []).length;
+        const when = s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('de-CH') : '';
+        li.innerHTML = `<button type="button" class="saved-open"><strong>${esc(s.name || 'Ohne Namen')}</strong><span>${esc(s.ort ? s.ort + ' · ' : '')}${n} ${n === 1 ? 'Glocke' : 'Glocken'}${when ? ' · ' + when : ''}</span></button><button type="button" class="icon-btn" title="Geläut löschen">Löschen</button>`;
+        li.children[0].onclick = () => openSaved(s);
+        li.children[1].onclick = (e) => armButton(e.currentTarget, 'Sicher?', () => deleteSaved(s));
+        ul.appendChild(li);
+      }
+      if (lk === '_') dl.appendChild(ul); else { dr.appendChild(ul); dl.appendChild(dr); }
+    }
+    box.appendChild(dl);
+  }
+  // Nur eigene Klicks merken (das automatische Öffnen der aktuellen Gruppe nicht)
+  box.querySelectorAll('summary').forEach((sm) => sm.addEventListener('click', () => setTimeout(() => {
+    const d = sm.parentElement, set = new Set((() => { try { return JSON.parse(localStorage.getItem(LS_OPEN)) || []; } catch { return []; } })());
+    if (d.open) set.add(d.dataset.key); else set.delete(d.dataset.key);
+    try { localStorage.setItem(LS_OPEN, JSON.stringify([...set])); } catch {}
+  }, 0)));
 }
 
 // ===== Eingaben =====
@@ -1235,6 +1304,8 @@ $('sheet').addEventListener('input', onBellInput);
 $('sheet').addEventListener('change', (e) => { if (e.target.tagName === 'SELECT') onBellInput(e); });
 $('gName').addEventListener('input', (e) => { state.g.name = e.target.value; setDirty(true); });
 $('gOrt').addEventListener('input', (e) => { state.g.ort = e.target.value; setDirty(true); });
+$('gLand').addEventListener('change', (e) => { state.g.land = e.target.value; state.g.region = ''; fillRegions(); setDirty(true); });
+$('gRegion').addEventListener('change', (e) => { state.g.region = e.target.value; setDirty(true); });
 $('gA1').addEventListener('change', (e) => { state.g.a1 = Number(e.target.value); setDirty(true); renderTabs(); renderComputed(); renderOverview(); });
 $('modeSeg').addEventListener('click', (e) => {
   const m = e.target.dataset.mode; if (!m) return;
@@ -1269,7 +1340,7 @@ $('btnDel').onclick = (e) => armButton(e.currentTarget, 'Wirklich entfernen?', (
 function snapshotForSave() {
   const g = clone(state.g);
   delete g.demo;
-  return { name: g.name || '', ort: g.ort || '', a1: Number(g.a1) || 435, bells: g.bells, updatedAt: Date.now() };
+  return { name: g.name || '', land: g.land || '', region: g.region || '', ort: g.ort || '', a1: Number(g.a1) || 435, bells: g.bells, updatedAt: Date.now() };
 }
 function slug(s) { return (s || 'gelaeut').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'gelaeut'; }
 
@@ -1296,7 +1367,7 @@ async function save() {
   }
 }
 function openSaved(s) {
-  state.g = { id: s.id, name: s.name || '', ort: s.ort || '', a1: s.a1 || 435, bells: clone(s.bells && s.bells.length ? s.bells : [newBell()]) };
+  state.g = { id: s.id, name: s.name || '', land: s.land || '', region: s.region || '', ort: s.ort || '', a1: s.a1 || 435, bells: clone(s.bells && s.bells.length ? s.bells : [newBell()]) };
   state.sel = 0; state.dirty = false;
   renderAll();
   toast(`„${s.name || 'Geläut'}“ geladen.`);
@@ -1524,7 +1595,7 @@ $('jsonIn').addEventListener('change', async (e) => {
     const j = JSON.parse(await file.text());
     const g = j.gelaeut || j;
     if (!Array.isArray(g.bells)) throw new Error('format');
-    state.g = { id: null, name: g.name || '', ort: g.ort || '', a1: g.a1 || 435, bells: g.bells.map((b) => ({ ...newBell(), ...b, f: { ...newBell().f, ...(b.f || {}) } })) };
+    state.g = { id: null, name: g.name || '', land: g.land || '', region: g.region || '', ort: g.ort || '', a1: g.a1 || 435, bells: g.bells.map((b) => ({ ...newBell(), ...b, f: { ...newBell().f, ...(b.f || {}) } })) };
     state.sel = 0; state.dirty = true; renderAll();
     toast('Geläut geladen. Mit „Geläut speichern“ in die Liste übernehmen.');
   } catch { toast('Die Datei ist kein gültiges Geläut (JSON).'); }
