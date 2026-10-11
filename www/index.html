@@ -32,6 +32,8 @@
   --patina-soft: #dcefe9;
   --warn: #a2401f;
   --warn-soft: #f8e1d8;
+  --spec: rgba(47, 111, 98, .55); --spec-line: #2f6f62; --mark: #8a5a1f; --pin: #b4471f; --grid: #dfe3df;
+  --tip-bg: #1d2422; --tip-fg: #f3f4f2; --wave: #7f8c87; --sel: rgba(138, 90, 31, .16);
   --input: #fbfbfa;
   --f-display: "Spectral", Georgia, "Times New Roman", serif;
   --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -43,12 +45,16 @@
     --bg: #141917; --panel: #1c2220; --ink: #e5e9e6; --muted: #9aa6a1; --line: #303a37; --soft: #252d2a;
     --bronze: #d9a35c; --bronze-soft: #3a2c19; --patina: #6cc2ae; --patina-soft: #1d3530;
     --warn: #f0906b; --warn-soft: #3d231a; --input: #171c1a; color-scheme: dark;
+    --spec: rgba(108, 194, 174, .45); --spec-line: #6cc2ae; --mark: #e2b06c; --pin: #f0906b; --grid: #2b3431;
+    --tip-bg: #e5e9e6; --tip-fg: #141917; --wave: #6f7c77; --sel: rgba(217, 163, 92, .2);
   }
 }
 :root[data-theme="dark"] {
   --bg: #141917; --panel: #1c2220; --ink: #e5e9e6; --muted: #9aa6a1; --line: #303a37; --soft: #252d2a;
   --bronze: #d9a35c; --bronze-soft: #3a2c19; --patina: #6cc2ae; --patina-soft: #1d3530;
   --warn: #f0906b; --warn-soft: #3d231a; --input: #171c1a; color-scheme: dark;
+  --spec: rgba(108, 194, 174, .45); --spec-line: #6cc2ae; --mark: #e2b06c; --pin: #f0906b; --grid: #2b3431;
+  --tip-bg: #e5e9e6; --tip-fg: #141917; --wave: #6f7c77; --sel: rgba(217, 163, 92, .2);
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
@@ -195,6 +201,39 @@ table { border-collapse: collapse; width: 100%; }
 .wr tr.mid td { font-weight: 600; }
 .wr caption { text-align: left; font-size: .78rem; color: var(--muted); padding-bottom: 6px; font-weight: 500; }
 
+/* Klanganalyse */
+.drop { display: flex; gap: 8px 10px; align-items: center; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 6px; padding: 10px 12px; }
+.drop.over { border-color: var(--patina); background: var(--patina-soft); }
+.drop .file { flex: 1; min-width: 180px; color: var(--muted); font-size: .86rem; overflow-wrap: anywhere; }
+.drop .file strong { color: var(--ink); }
+.ka-body { display: grid; gap: 12px; margin-top: 12px; }
+.ka-body > * { min-width: 0; }
+.ctrl { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: end; }
+.ctrl label { display: grid; gap: 3px; font-size: .72rem; color: var(--muted); font-weight: 500; }
+.ctrl select { border: 1px solid var(--line); background: var(--input); color: var(--ink); border-radius: 5px; padding: 4px 7px; font: inherit; font-size: .86rem; }
+.ctrl .chk { display: flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--ink); padding-bottom: 5px; }
+.wave-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .78rem; color: var(--muted); margin-bottom: 4px; }
+#ka_wave { width: 100%; height: 56px; display: block; touch-action: none; cursor: crosshair; background: var(--soft); border-radius: 4px; }
+.chart-box { position: relative; }
+#ka_chart { width: 100%; height: clamp(280px, 46vh, 460px); display: block; touch-action: none; cursor: crosshair; }
+.busy { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--panel) 70%, transparent); font-weight: 600; color: var(--muted); }
+.read { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.read div { background: var(--soft); border-radius: 5px; padding: 7px 10px; min-width: 0; }
+.read span { display: block; font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.read b { font-family: var(--f-mono); font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.read small { font-family: var(--f-mono); color: var(--muted); margin-left: 6px; }
+.read .pin b { color: var(--pin); }
+.pk { min-width: 440px; }
+.pk th, .pk td { padding: 5px 8px; border-bottom: 1px solid var(--soft); text-align: left; white-space: nowrap; }
+.pk thead th { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--line); }
+.pk td.n, .pk th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.pk tbody tr { cursor: pointer; }
+.pk tbody tr:hover { background: var(--soft); }
+.pk tbody tr.on { background: var(--bronze-soft); }
+.pk td select { border: 1px solid var(--line); background: var(--input); color: var(--ink); border-radius: 4px; padding: 3px 4px; font: inherit; font-size: .8rem; }
+.pk .used { font-size: .74rem; color: var(--patina); font-weight: 600; margin-left: 6px; }
+.err { color: var(--warn); font-weight: 600; }
+
 /* Übersicht */
 .ov { min-width: 520px; }
 .ov th, .ov td { padding: 6px 10px; border-bottom: 1px solid var(--soft); text-align: center; white-space: nowrap; }
@@ -285,6 +324,49 @@ table { border-collapse: collapse; width: 100%; }
             <label class="f wide"><span>Giesser</span><input class="in" id="b_giesser" data-k="giesser" placeholder="z. B. Rüetschi, Aarau"></label>
             <label class="f"><span>Durchmesser</span><span class="unit"><input class="in mono" id="b_durchmesser" data-k="durchmesser" inputmode="decimal" placeholder="1110"><em>mm</em></span></label>
             <label class="f"><span>Gewicht (falls bekannt)</span><span class="unit"><input class="in mono" id="b_gewicht" data-k="gewicht" inputmode="decimal" placeholder="—"><em>kg</em></span></label>
+          </div>
+        </div>
+
+        <div class="sec" id="ka">
+          <h3>Klanganalyse <small>Frequenzspektrum einer Tonaufnahme, die Spitzen lassen sich als Teiltöne übernehmen</small></h3>
+          <div class="drop" id="ka_drop">
+            <label class="btn small primary" for="ka_file">Tondatei wählen</label>
+            <input id="ka_file" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac,.opus,.webm" class="sr">
+            <button class="btn small" id="ka_play" type="button" hidden>▶ Abspielen</button>
+            <button class="btn small ghost danger" id="ka_del" type="button" hidden>Spektrum entfernen</button>
+            <div class="file" id="ka_info">WAV, MP3, M4A, OGG oder FLAC hierher ziehen oder wählen. Die Datei wird nur auf diesem Gerät ausgewertet; gespeichert wird das Spektrum.</div>
+          </div>
+          <div class="ka-body" id="ka_body" hidden>
+            <div class="ctrl">
+              <label>Achse<select id="ka_axis"><option value="log">Logarithmisch</option><option value="lin">Linear</option></select></label>
+              <label>Von<select id="ka_fmin"><option>20</option><option>50</option><option>100</option><option>200</option></select></label>
+              <label>Bis<select id="ka_fmax"><option>2000</option><option>5000</option><option selected>10000</option></select></label>
+              <label>FFT-Grösse<select id="ka_size"><option>4096</option><option>8192</option><option selected>16384</option><option>32768</option><option>65536</option></select></label>
+              <label>Dynamik<select id="ka_range"><option value="60">60 dB</option><option value="90" selected>90 dB</option><option value="120">120 dB</option></select></label>
+              <label>Beschriftete Spitzen<select id="ka_labels"><option>5</option><option selected>10</option><option>15</option><option>25</option></select></label>
+              <label class="chk"><input type="checkbox" id="ka_snap" checked> Auf Spitzen einrasten</label>
+            </div>
+            <div id="ka_waveBox" hidden>
+              <div class="wave-head"><span>Ausschnitt: in der Wellenform ziehen, Tippen wählt alles.</span><span id="ka_sel" class="mono"></span></div>
+              <canvas id="ka_wave" aria-label="Wellenform, Bereich für die Analyse auswählen"></canvas>
+            </div>
+            <div class="chart-box">
+              <canvas id="ka_chart" tabindex="0" aria-label="Frequenzspektrum. Mit Maus oder Finger abfahren, Pfeiltasten springen von Spitze zu Spitze."></canvas>
+              <div class="busy" id="ka_busy" hidden>Berechne Spektrum …</div>
+            </div>
+            <div class="read">
+              <div><span>Cursor</span><b id="ka_cur">—</b><small id="ka_curDb"></small></div>
+              <div><span>Ton am Cursor</span><b id="ka_ton">—</b></div>
+              <div class="pin"><span>Markiert</span><b id="ka_pin">—</b><small id="ka_pinT"></small></div>
+              <div><span>Auflösung</span><b id="ka_res">—</b><small id="ka_frames"></small></div>
+            </div>
+            <div class="tscroll">
+              <table class="pk">
+                <thead><tr><th class="n">#</th><th class="n">Frequenz [Hz]</th><th class="n">Pegel [dB]</th><th>Ton</th><th>Als Teilton übernehmen</th></tr></thead>
+                <tbody id="ka_peaks"></tbody>
+              </table>
+            </div>
+            <p class="hint" style="margin:0">Über das Spektrum fahren oder mit dem Finger streichen. Nahe einer Spitze rastet der Cursor ein (durchgezogene Linie), dazwischen zeigt er die freie Stelle (gestrichelt). Klicken oder Loslassen markiert, Pfeiltasten springen von Spitze zu Spitze. Die Zuordnung trägt die Frequenz in die Teiltöne ein.</p>
           </div>
         </div>
 
@@ -455,6 +537,357 @@ function computeBell(bell, a1) {
 }
 
 
+// ===== Spektrum-Analyse (wie Audacity "Frequenzanalyse": Spektrum, Hann-Fenster) =====
+const Spectrum = (() => {
+  // --- FFT (radix-2, in place) ---
+  function fft(re, im) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = (-2 * Math.PI) / len, wr = Math.cos(ang), wi = Math.sin(ang), half = len >> 1;
+      for (let i = 0; i < n; i += len) {
+        let cr = 1, ci = 0;
+        for (let k = 0; k < half; k++) {
+          const a = i + k, b = a + half;
+          const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+          const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+        }
+      }
+    }
+  }
+
+  // Gemitteltes Leistungsspektrum (Welch, 50 % Überlappung)
+  function analyze(samples, sr, N, start = 0, end = samples.length) {
+    const win = new Float64Array(N);
+    for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+    const half = N / 2, pow = new Float64Array(half + 1);
+    const re = new Float64Array(N), im = new Float64Array(N);
+    const hop = N / 2;
+    let frames = 0;
+    const len = end - start;
+    const last = len <= N ? start : end - N;
+    for (let s = start; s <= last; s += hop) {
+      for (let i = 0; i < N; i++) { const v = s + i < end ? samples[s + i] : 0; re[i] = v * win[i]; im[i] = 0; }
+      fft(re, im);
+      for (let k = 0; k <= half; k++) pow[k] += re[k] * re[k] + im[k] * im[k];
+      frames++;
+      if (len <= N) break;
+    }
+    let max = 1e-30;
+    for (let k = 1; k <= half; k++) { pow[k] /= frames; if (pow[k] > max) max = pow[k]; }
+    const db = new Float32Array(half + 1);
+    for (let k = 0; k <= half; k++) db[k] = 10 * Math.log10(Math.max(pow[k], 1e-30) / max);
+    return { db, df: sr / N, sr, N, frames };
+  }
+
+  // Lokale Maxima mit Prominenz, Frequenz per Parabel-Interpolation verfeinert
+  function findPeaks(spec, fmin, fmax, minProm = 3) {
+    const { db, df } = spec, out = [];
+    const k0 = Math.max(2, Math.floor(fmin / df)), k1 = Math.min(db.length - 3, Math.ceil(fmax / df));
+    for (let k = k0; k <= k1; k++) {
+      const b = db[k];
+      if (!(b > db[k - 1] && b >= db[k + 1])) continue;
+      const f = k * df;
+      const w = Math.max(4, Math.round((f * 0.03) / df)); // ~ halber Halbton Umgebung
+      let ml = b, mr = b;
+      for (let j = 1; j <= w && k - j >= 0; j++) { if (db[k - j] > b) { ml = -Infinity; break; } ml = Math.min(ml, db[k - j]); }
+      for (let j = 1; j <= w && k + j < db.length; j++) { if (db[k + j] > b) { mr = -Infinity; break; } mr = Math.min(mr, db[k + j]); }
+      if (ml === -Infinity || mr === -Infinity) continue;
+      const prom = b - Math.max(ml, mr);
+      if (prom < minProm) continue;
+      const a = db[k - 1], c = db[k + 1], den = a - 2 * b + c;
+      const p = den !== 0 ? (0.5 * (a - c)) / den : 0;
+      out.push({ f: (k + p) * df, db: b - 0.25 * (a - c) * p, prom, k });
+    }
+    return out;
+  }
+
+  function dbAt(spec, f) {
+    const x = (f - (spec.off || 0)) / spec.df, k = Math.floor(x), t = x - k;
+    if (k < 0 || k + 1 >= spec.db.length) return -200;
+    return spec.db[k] * (1 - t) + spec.db[k + 1] * t;
+  }
+
+  // Beispielklang: Glocke mit Teiltönen, Abklingen und Rauschen
+  function demoBell(sr = 44100, secs = 6, ratio = 1) {
+    const partials = [[193.2, .55, 1.2], [389.1, .7, 1.8], [462.5, .5, 2.4], [578, .25, 2.6], [776.4, 1, 3], [979, .35, 3.6], [1031, .18, 3.8], [1166, .3, 4.2], [1556, .22, 5], [1945, .12, 6], [2410, .08, 7], [3120, .05, 8]];
+    const n = sr * secs, out = new Float32Array(n);
+    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr; let v = 0;
+      for (const [f0, a, d] of partials) { const f = f0 * ratio; v += a * Math.exp(-d * t * 0.6) * Math.sin(2 * Math.PI * f * t + f); }
+      out[i] = v * 0.18 + rnd() * 0.004 * (1 + 4 * Math.exp(-t * 6));
+    }
+    return out;
+  }
+  // Kompakt speichern: bis fmax, höchstens 6000 Punkte (Maximum je Gruppe), 0.5-dB-Schritte, Spitzen mit voller Genauigkeit
+  function pack(spec, info, fmax = 10000) {
+    const { db, df } = spec;
+    const kmax = Math.min(db.length - 1, Math.ceil(fmax / df));
+    const factor = Math.max(1, Math.ceil((kmax + 1) / 6000));
+    const n = Math.ceil((kmax + 1) / factor), bytes = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      let m = -300; for (let k = i * factor; k < Math.min(kmax + 1, (i + 1) * factor); k++) if (db[k] > m) m = db[k];
+      bytes[i] = Math.max(0, Math.min(255, Math.round(-m * 2)));
+    }
+    let bin = ''; for (let i = 0; i < n; i += 4096) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 4096));
+    const pk = findPeaks(spec, 15, Math.min(fmax * 1.05, spec.sr / 2 - df * 3), 3)
+      .sort((a, b) => b.db - a.db).slice(0, 300)
+      .map((p) => [Math.round(p.f * 100) / 100, Math.round(p.db * 10) / 10, Math.round(p.prom * 10) / 10]);
+    return { v: 1, ...info, sr: spec.sr, N: spec.N, frames: spec.frames, df: df * factor, off: ((factor - 1) / 2) * df, fmax, q: btoa(bin), pk };
+  }
+  function unpack(o) {
+    const bin = atob(o.q), db = new Float32Array(bin.length);
+    for (let i = 0; i < bin.length; i++) db[i] = -bin.charCodeAt(i) / 2;
+    return { spec: { db, df: o.df, off: o.off || 0, sr: o.sr, N: o.N, frames: o.frames }, peaks: (o.pk || []).map(([f, d, p]) => ({ f, db: d, prom: p })) };
+  }
+  return { analyze, findPeaks, dbAt, demoBell, pack, unpack };
+})();
+
+// ===== Darstellung =====
+function SpectrumChart(canvas, opts) {
+  const S = {
+    spec: null, peaks: [], allPeaks: [], log: true, fmin: 20, fmax: 10000, range: 90, labels: 10,
+    snap: true, hover: null, pinned: null, a1: 435, onPin: null, onHover: null, ...opts,
+  };
+  const ctx = canvas.getContext('2d');
+  const PAD = { l: 44, r: 12, t: 30, b: 26 };
+  const css = (n) => getComputedStyle(canvas).getPropertyValue(n).trim();
+  let W = 0, H = 0, dpr = 1;
+
+  const plotW = () => W - PAD.l - PAD.r, plotH = () => H - PAD.t - PAD.b;
+  const xOf = (f) => PAD.l + (S.log ? (Math.log(f) - Math.log(S.fmin)) / (Math.log(S.fmax) - Math.log(S.fmin)) : (f - S.fmin) / (S.fmax - S.fmin)) * plotW();
+  const fOf = (x) => { const t = (x - PAD.l) / plotW(); return S.log ? Math.exp(Math.log(S.fmin) + t * (Math.log(S.fmax) - Math.log(S.fmin))) : S.fmin + t * (S.fmax - S.fmin); };
+  const yOf = (d) => PAD.t + (Math.min(0, Math.max(-S.range, d)) / -S.range) * plotH();
+  const toneOf = (f) => { if (typeof nearestIdx !== 'function') return ''; const i = nearestIdx(f, S.a1); return i === null ? '' : DATA.tones[i]; };
+  const fmtF = (f) => (f >= 1000 ? f.toFixed(1) : f.toFixed(1));
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    pickLabels(); draw();
+  }
+
+  function setData(spec, peaks) {
+    S.spec = spec;
+    S.allPeaks = peaks || (spec ? Spectrum.findPeaks(spec, 15, Math.min(spec.sr / 2 - spec.df * 3, 22000), 3) : []);
+    S.pinned = null; S.hover = null;
+    pickLabels();
+    draw();
+  }
+  function pickLabels() {
+    const vis = S.allPeaks.filter((p) => p.f >= S.fmin && p.f <= S.fmax && p.prom >= 6);
+    S.peaks = vis.sort((a, b) => b.db - a.db).slice(0, S.labels);
+  }
+  function set(o) { Object.assign(S, o); pickLabels(); draw(); }
+
+  function ticks() {
+    const major = [], minor = [];
+    if (S.log) {
+      for (let dec = 1; dec <= 100000; dec *= 10) for (let m = 1; m < 10; m++) {
+        const f = m * dec; if (f < S.fmin || f > S.fmax) continue;
+        (m === 1 || m === 2 || m === 5 ? major : minor).push(f);
+      }
+    } else {
+      const span = S.fmax - S.fmin, step = span > 8000 ? 1000 : span > 4000 ? 500 : span > 1500 ? 250 : 100;
+      for (let f = Math.ceil(S.fmin / step) * step; f <= S.fmax; f += step) major.push(f);
+    }
+    return { major, minor };
+  }
+
+  function draw() {
+    if (!W) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const C = { grid: css('--grid'), axis: css('--muted'), ink: css('--ink'), fill: css('--spec'), line: css('--spec-line'), mark: css('--mark'), pin: css('--pin'), panel: css('--panel') };
+    ctx.font = '11px ' + css('--f-mono');
+    // Raster
+    const { major, minor } = ticks();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = C.grid; ctx.globalAlpha = 0.5;
+    for (const f of minor) { const x = Math.round(xOf(f)) + 0.5; ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, H - PAD.b); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C.axis; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const f of major) {
+      const x = Math.round(xOf(f)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, H - PAD.b); ctx.stroke();
+      ctx.fillText(f >= 1000 ? f / 1000 + 'k' : String(f), x, H - PAD.b + 6);
+    }
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const step = S.range > 60 ? 20 : 10;
+    for (let d = 0; d >= -S.range; d -= step) {
+      const y = Math.round(yOf(d)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+      ctx.fillText(d + (d === 0 ? ' dB' : ''), PAD.l - 6, y);
+    }
+    if (!S.spec) return;
+    // Spektrum (pro Pixelspalte das Maximum der Frequenzbins)
+    const { db, df } = S.spec, x0 = PAD.l, x1 = W - PAD.r, base = H - PAD.b;
+    ctx.beginPath(); ctx.moveTo(x0, base);
+    for (let x = x0; x <= x1; x++) {
+      const fa = fOf(x - 0.5), fb = fOf(x + 0.5);
+      let v;
+      const off = S.spec.off || 0, ka = Math.max(0, Math.floor((fa - off) / df)), kb = Math.min(db.length - 1, Math.ceil((fb - off) / df));
+      if (kb - ka >= 2) { v = -300; for (let k = ka; k <= kb; k++) if (db[k] > v) v = db[k]; }
+      else v = Spectrum.dbAt(S.spec, fOf(x));
+      ctx.lineTo(x, yOf(v));
+    }
+    ctx.lineTo(x1, base); ctx.closePath();
+    ctx.fillStyle = C.fill; ctx.fill();
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+    // Beschriftung der höchsten Spitzen
+    const boxes = [];
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.font = '600 11px ' + css('--f-mono');
+    const cap = Math.max(4, Math.floor(plotW() / 55)); // auf schmalen Bildschirmen weniger Beschriftungen
+    for (const p of S.peaks.slice(0, cap)) {
+      const x = xOf(p.f), y = yOf(p.db);
+      const txt = fmtF(p.f), w = ctx.measureText(txt).width + 6;
+      let ly = y - 6, ok = false;
+      for (let tries = 0; tries < 4 && !ok; tries++) {
+        const bx = { l: x - w / 2, r: x + w / 2, t: ly - 13, b: ly };
+        ok = bx.t >= 2 && !boxes.some((o) => bx.l < o.r && bx.r > o.l && bx.t < o.b && bx.b > o.t);
+        if (ok) boxes.push(bx); else ly -= 14;
+      }
+      ctx.fillStyle = C.mark;
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+      if (!ok) continue;
+      if (ly < y - 8) { ctx.strokeStyle = C.mark; ctx.globalAlpha = .4; ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x, ly); ctx.stroke(); ctx.globalAlpha = 1; }
+      ctx.fillStyle = C.panel; ctx.globalAlpha = .82; ctx.fillRect(x - w / 2, ly - 13, w, 13); ctx.globalAlpha = 1;
+      ctx.fillStyle = C.mark; ctx.fillText(txt, x, ly);
+    }
+    // Markierung und Cursor
+    if (S.pinned) cursor(S.pinned, C.pin, false);
+    if (S.hover) cursor(S.hover, C.ink, true);
+  }
+
+  function cursor(c, color, withBox) {
+    const x = xOf(c.f), y = yOf(c.db);
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.setLineDash(c.snapped ? [] : [4, 3]);
+    ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, PAD.t); ctx.lineTo(Math.round(x) + 0.5, H - PAD.b); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, c.snapped ? 4.5 : 3, 0, Math.PI * 2); ctx.fill();
+    if (withBox) {
+      ctx.font = '600 12px ' + css('--f-mono');
+      const l1 = `${fmtF(c.f)} Hz`, l2 = `${c.db.toFixed(1)} dB  ${toneOf(c.f)}`;
+      const w = Math.max(ctx.measureText(l1).width, ctx.measureText(l2).width) + 14;
+      let bx = x + 10; if (bx + w > W - PAD.r) bx = x - 10 - w;
+      const by = H - PAD.b - 44;
+      ctx.fillStyle = css('--tip-bg'); ctx.fillRect(bx, by, w, 36);
+      ctx.fillStyle = css('--tip-fg'); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(l1, bx + 7, by + 4);
+      ctx.font = '11px ' + css('--f-mono'); ctx.fillText(l2, bx + 7, by + 20);
+    }
+    ctx.restore();
+  }
+
+  // Zeiger: frei folgen, nahe einer Spitze einrasten
+  function locate(clientX, touch) {
+    if (!S.spec) return null;
+    const r = canvas.getBoundingClientRect(), x = Math.min(Math.max(clientX - r.left, PAD.l), W - PAD.r);
+    const f = fOf(x);
+    if (S.snap) {
+      const rad = touch ? 16 : 9;
+      let best = null, bd = rad;
+      for (const p of S.allPeaks) {
+        if (p.f < S.fmin || p.f > S.fmax) continue;
+        const d = Math.abs(xOf(p.f) - x);
+        if (d < bd || (best && d === bd && p.db > best.db)) { bd = d; best = p; }
+      }
+      if (best) return { f: best.f, db: best.db, snapped: true };
+    }
+    return { f, db: Spectrum.dbAt(S.spec, f), snapped: false };
+  }
+  let down = false;
+  canvas.addEventListener('pointerdown', (e) => {
+    down = true; try { canvas.setPointerCapture(e.pointerId); } catch {}
+    S.hover = locate(e.clientX, e.pointerType !== 'mouse'); draw(); S.onHover && S.onHover(S.hover);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' && !down) return;
+    S.hover = locate(e.clientX, e.pointerType !== 'mouse'); draw(); S.onHover && S.onHover(S.hover);
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    down = false;
+    const c = locate(e.clientX, e.pointerType !== 'mouse');
+    if (c) { S.pinned = c; S.onPin && S.onPin(c); }
+    if (e.pointerType !== 'mouse') S.hover = null;
+    draw();
+  });
+  canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { S.hover = null; draw(); S.onHover && S.onHover(null); } });
+  canvas.addEventListener('pointercancel', () => { down = false; S.hover = null; draw(); });
+  // Tastatur: Pfeile springen von Spitze zu Spitze
+  canvas.addEventListener('keydown', (e) => {
+    if (!S.spec || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    const vis = S.allPeaks.filter((p) => p.f >= S.fmin && p.f <= S.fmax && p.prom >= 6).sort((a, b) => a.f - b.f);
+    if (!vis.length) return;
+    const cur = S.pinned ? S.pinned.f : (e.key === 'ArrowRight' ? 0 : Infinity);
+    const nx = e.key === 'ArrowRight' ? vis.find((p) => p.f > cur + 1e-6) : [...vis].reverse().find((p) => p.f < cur - 1e-6);
+    if (nx) { S.pinned = { f: nx.f, db: nx.db, snapped: true }; S.onPin && S.onPin(S.pinned); draw(); }
+  });
+  new ResizeObserver(resize).observe(canvas);
+  return { setData, set, draw, state: S, pin(p) { S.pinned = { f: p.f, db: p.db, snapped: true }; draw(); } };
+}
+
+// ===== Wellenform mit Bereichsauswahl =====
+function WaveStrip(canvas, onSelect) {
+  const ctx = canvas.getContext('2d');
+  let data = null, sr = 44100, sel = null, W = 0, H = 0, dpr = 1, env = null;
+  const css = (n) => getComputedStyle(canvas).getPropertyValue(n).trim();
+  function resize() { dpr = devicePixelRatio || 1; const r = canvas.getBoundingClientRect(); W = r.width; H = r.height; canvas.width = W * dpr; canvas.height = H * dpr; env = null; draw(); }
+  function envelope() {
+    const cols = Math.max(1, Math.floor(W)), per = data.length / cols, mins = new Float32Array(cols), maxs = new Float32Array(cols);
+    for (let c = 0; c < cols; c++) {
+      let lo = 0, hi = 0; const a = Math.floor(c * per), b = Math.min(data.length, Math.floor((c + 1) * per));
+      for (let i = a; i < b; i += Math.max(1, Math.floor((b - a) / 400))) { const v = data[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      mins[c] = lo; maxs[c] = hi;
+    }
+    let peak = 1e-9; for (let c = 0; c < cols; c++) peak = Math.max(peak, -mins[c], maxs[c]);
+    return { mins, maxs, peak };
+  }
+  function draw() {
+    if (!W) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    if (!data) return;
+    env = env || envelope();
+    const mid = H / 2;
+    if (sel) {
+      ctx.fillStyle = css('--sel'); ctx.fillRect(sel[0] / data.length * W, 0, (sel[1] - sel[0]) / data.length * W, H);
+    }
+    ctx.fillStyle = css('--wave');
+    for (let c = 0; c < env.mins.length; c++) {
+      const a = mid - (env.maxs[c] / env.peak) * (mid - 3), b = mid - (env.mins[c] / env.peak) * (mid - 3);
+      ctx.fillRect(c, a, 1, Math.max(1, b - a));
+    }
+    ctx.fillStyle = css('--muted'); ctx.font = '10px ' + css('--f-mono'); ctx.textBaseline = 'top';
+    const dur = data.length / sr, step = [0.5, 1, 2, 5, 10, 15, 30, 60, 120].find((v) => (dur / v) * 46 <= W) || 300;
+    for (let t = step; t < dur; t += step) { const x = t / dur * W; ctx.fillRect(x, H - 5, 1, 5); ctx.fillText(t + ' s', x + 2, 2); }
+  }
+  let anchor = null;
+  const idx = (e) => { const r = canvas.getBoundingClientRect(); return Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * data.length); };
+  canvas.addEventListener('pointerdown', (e) => { if (!data) return; try { canvas.setPointerCapture(e.pointerId); } catch {} anchor = idx(e); sel = [anchor, anchor]; draw(); });
+  canvas.addEventListener('pointermove', (e) => { if (anchor === null) return; const i = idx(e); sel = [Math.min(anchor, i), Math.max(anchor, i)]; draw(); });
+  canvas.addEventListener('pointerup', () => {
+    if (anchor === null) return; anchor = null;
+    if (sel[1] - sel[0] < sr * 0.05) sel = [0, data.length]; // Tippen = alles
+    draw(); onSelect(sel);
+  });
+  new ResizeObserver(resize).observe(canvas);
+  return {
+    set(d, rate) { data = d; sr = rate; sel = [0, d.length]; env = null; draw(); },
+    get sel() { return sel; }, setSel(s) { sel = s; draw(); },
+  };
+}
+
 </script>
 <script>
 // ===== Zustand =====
@@ -564,6 +997,7 @@ function renderBellForm() {
   $('btnLeft').disabled = state.sel === 0;
   $('btnRight').disabled = state.sel === state.g.bells.length - 1;
   $('btnDel').disabled = state.g.bells.length === 1;
+  if (window.KA) KA.showBell();
 }
 
 function renderComputed() {
@@ -717,6 +1151,7 @@ function slug(s) { return (s || 'gelaeut').toLowerCase().normalize('NFD').replac
 async function save() {
   if (!state.g.name.trim()) { $('gName').focus(); toast('Bitte zuerst einen Namen für das Geläut eingeben.'); return; }
   const body = snapshotForSave();
+  if (state.store === 'db' && JSON.stringify(body).length > 245000) { toast('Das Geläut ist zu gross zum Speichern. Bitte bei einzelnen Glocken das Spektrum entfernen.'); return; }
   const id = state.g.id || `${slug(body.name)}-${Date.now().toString(36)}`;
   try {
     if (state.store === 'db') {
@@ -922,6 +1357,152 @@ $('jsonIn').addEventListener('change', async (e) => {
   } catch { toast('Die Datei ist kein gültiges Geläut (JSON).'); }
 });
 
+
+// ===== Klanganalyse je Glocke =====
+const KA = (() => {
+  const PK = PARTIALS.filter((p) => !p.computed);
+  const audio = new WeakMap(); // Aufnahme der aktuellen Sitzung je Glocke
+  let ac = null, src = null;
+  const prefKey = 'gelaeut-ka-view';
+  const tone = (f) => { const i = nearestIdx(f, a1()); return i === null ? '' : DATA.tones[i]; };
+  const chart = SpectrumChart($('ka_chart'), {
+    onHover(c) {
+      $('ka_cur').textContent = c ? c.f.toFixed(1) + ' Hz' : '—';
+      $('ka_curDb').textContent = c ? c.db.toFixed(1) + ' dB' + (c.snapped ? ' · Spitze' : '') : '';
+      $('ka_ton').textContent = c ? tone(c.f) : '—';
+    },
+    onPin(c) { $('ka_pin').textContent = c.f.toFixed(1) + ' Hz'; $('ka_pinT').textContent = tone(c.f); markRow(c.f); },
+  });
+  const wave = WaveStrip($('ka_wave'), () => analyze());
+
+  function view() {
+    const v = { log: $('ka_axis').value === 'log', fmin: +$('ka_fmin').value, fmax: +$('ka_fmax').value, range: +$('ka_range').value, labels: +$('ka_labels').value, snap: $('ka_snap').checked, a1: a1() };
+    chart.set(v); table();
+    lsSet(prefKey, { axis: $('ka_axis').value, fmin: $('ka_fmin').value, fmax: $('ka_fmax').value, range: $('ka_range').value, labels: $('ka_labels').value, snap: v.snap, size: $('ka_size').value });
+  }
+  function info(b, rec) {
+    const s = b.spek;
+    if (rec) return `<strong>${esc(rec.name)}</strong> · ${(rec.samples.length / rec.sr).toFixed(1)} s · Ausschnitt ${(rec.sel[0] / rec.sr).toFixed(2)}–${(rec.sel[1] / rec.sr).toFixed(2)} s`;
+    if (s) return `<strong>${esc(s.file || 'Aufnahme')}</strong> · Ausschnitt ${(+s.a).toFixed(2)}–${(+s.b).toFixed(2)} s · gespeichert ${new Date(s.date).toLocaleDateString('de-CH')}. Für eine neue Auswertung (anderer Ausschnitt oder FFT-Grösse) die Aufnahme erneut laden.`;
+    return 'WAV, MP3, M4A, OGG oder FLAC hierher ziehen oder wählen. Die Datei wird nur auf diesem Gerät ausgewertet; gespeichert wird das Spektrum.';
+  }
+  function showBell() {
+    const b = bell(), rec = audio.get(b);
+    stop();
+    $('ka_info').innerHTML = info(b, rec);
+    $('ka_body').hidden = !b.spek;
+    $('ka_del').hidden = !b.spek;
+    $('ka_play').hidden = !rec;
+    $('ka_waveBox').hidden = !rec;
+    $('ka_size').disabled = !rec;
+    $('ka_pin').textContent = '—'; $('ka_pinT').textContent = '';
+    if (rec) { wave.set(rec.samples, rec.sr); wave.setSel(rec.sel); $('ka_sel').textContent = `${(rec.sel[0] / rec.sr).toFixed(2)} – ${(rec.sel[1] / rec.sr).toFixed(2)} s`; }
+    if (b.spek) {
+      const { spec, peaks } = Spectrum.unpack(b.spek);
+      chart.set({ a1: a1() });
+      chart.setData(spec, peaks);
+      $('ka_res').textContent = (b.spek.sr / b.spek.N).toFixed(2) + ' Hz';
+      $('ka_frames').textContent = `FFT ${b.spek.N}`;
+      if (!rec) $('ka_size').value = String(b.spek.N);
+      requestAnimationFrame(() => chart.draw());
+    } else chart.setData(null);
+    table();
+  }
+  function analyze() {
+    const b = bell(), rec = audio.get(b);
+    if (!rec) return;
+    rec.sel = wave.sel || [0, rec.samples.length];
+    $('ka_body').hidden = false; $('ka_busy').hidden = false;
+    setTimeout(() => {
+      const N = +$('ka_size').value;
+      const spec = Spectrum.analyze(rec.samples, rec.sr, N, rec.sel[0], rec.sel[1]);
+      b.spek = Spectrum.pack(spec, { file: rec.name, a: Math.round(rec.sel[0] / rec.sr * 100) / 100, b: Math.round(rec.sel[1] / rec.sr * 100) / 100, dur: Math.round(rec.samples.length / rec.sr * 10) / 10, date: Date.now() });
+      $('ka_busy').hidden = true;
+      setDirty(true);
+      showBell();
+    }, 30);
+  }
+  function table() {
+    const b = bell(), body = $('ka_peaks');
+    const peaks = [...chart.state.peaks].sort((x, y) => x.f - y.f);
+    if (!b.spek || !peaks.length) { body.innerHTML = `<tr><td colspan="5" class="hint">${b.spek ? 'Keine deutlichen Spitzen im gewählten Bereich.' : ''}</td></tr>`; return; }
+    body.innerHTML = peaks.map((p, i) => {
+      const used = PK.filter((q) => Math.abs((num(b.f[q.key]) ?? -1) - p.f) < 0.051).map((q) => q.label);
+      return `<tr data-f="${p.f}" data-db="${p.db}"><td class="n">${i + 1}</td><td class="n">${p.f.toFixed(1)}</td><td class="n">${p.db.toFixed(1)}</td><td class="ton">${tone(p.f)}</td><td><select aria-label="Teilton für ${p.f.toFixed(1)} Hz"><option value="">—</option>${PK.map((q) => `<option value="${q.key}">${q.label}</option>`).join('')}</select>${used.length ? `<span class="used">= ${used.join(', ')}</span>` : ''}</td></tr>`;
+    }).join('');
+  }
+  function markRow(f) { [...$('ka_peaks').rows].forEach((r) => r.classList.toggle('on', Math.abs(+r.dataset.f - f) < 0.05)); }
+
+  $('ka_peaks').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr');
+    if (!tr || !tr.dataset.f || ['SELECT', 'OPTION'].includes(e.target.tagName)) return;
+    const p = { f: +tr.dataset.f, db: +tr.dataset.db };
+    chart.pin(p); $('ka_pin').textContent = p.f.toFixed(1) + ' Hz'; $('ka_pinT').textContent = tone(p.f); markRow(p.f);
+  });
+  $('ka_peaks').addEventListener('change', (e) => {
+    e.stopPropagation();
+    const k = e.target.value, tr = e.target.closest('tr'); if (!k || !tr) return;
+    const f = (+tr.dataset.f).toFixed(1), b = bell();
+    b.f[k] = f; const inp = $('f_' + k); if (inp) inp.value = f;
+    setDirty(true); renderComputed(); renderOverview(); renderTabs(); table();
+    toast(`${PK.find((q) => q.key === k).label}: ${f} Hz übernommen.`);
+  });
+
+  async function load(file) {
+    const b = bell();
+    $('ka_info').innerHTML = `<strong>${esc(file.name)}</strong> wird gelesen …`;
+    try {
+      const buf = await file.arrayBuffer();
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ac = ac || new AC();
+      const au = await ac.decodeAudioData(buf.slice(0));
+      const n = au.length, ch = au.numberOfChannels, mono = new Float32Array(n);
+      for (let c = 0; c < ch; c++) { const d = au.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ch; }
+      // Standard: ab dem Anschlag (lautester Moment), höchstens 20 s
+      let pk = 0, pv = 0; for (let i = 0; i < n; i += 64) { const v = Math.abs(mono[i]); if (v > pv) { pv = v; pk = i; } }
+      const start = Math.max(0, pk - Math.round(au.sampleRate * 0.05));
+      audio.set(b, { samples: mono, sr: au.sampleRate, name: file.name, sel: [start, Math.min(n, start + au.sampleRate * 20)] });
+      if (bell() !== b) return;
+      $('ka_body').hidden = false; $('ka_waveBox').hidden = false;
+      const rec = audio.get(b); wave.set(rec.samples, rec.sr); wave.setSel(rec.sel);
+      analyze();
+    } catch {
+      $('ka_info').innerHTML = `<span class="err">„${esc(file.name)}“ konnte nicht gelesen werden.</span> Dieses Format unterstützt das Gerät nicht. Bitte als WAV oder MP3 speichern und erneut laden.`;
+    }
+  }
+  function stop() { if (src) { try { src.stop(); } catch {} src = null; } $('ka_play').textContent = '▶ Abspielen'; }
+  $('ka_play').onclick = () => {
+    if (src) return stop();
+    const rec = audio.get(bell()); if (!rec) return;
+    const AC = window.AudioContext || window.webkitAudioContext; ac = ac || new AC();
+    const s = wave.sel || [0, rec.samples.length], len = Math.max(1, s[1] - s[0]);
+    const buf = ac.createBuffer(1, len, rec.sr); buf.copyToChannel(rec.samples.subarray(s[0], s[0] + len), 0);
+    const node = ac.createBufferSource(); node.buffer = buf; node.connect(ac.destination);
+    node.onended = () => { if (src === node) stop(); };
+    ac.resume(); node.start(); src = node; $('ka_play').textContent = '■ Stopp';
+  };
+  $('ka_del').onclick = (e) => armButton(e.currentTarget, 'Wirklich entfernen?', () => {
+    const b = bell(); delete b.spek; audio.delete(b); setDirty(true); showBell();
+  });
+  $('ka_file').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) load(f); });
+  const drop = $('ka_drop');
+  ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) load(f); });
+  ['ka_axis', 'ka_fmin', 'ka_fmax', 'ka_range', 'ka_labels', 'ka_snap'].forEach((id) => $(id).addEventListener('change', (e) => { e.stopPropagation(); view(); }));
+  $('ka_size').addEventListener('change', (e) => { e.stopPropagation(); view(); analyze(); });
+  $('gA1').addEventListener('change', () => { chart.set({ a1: a1() }); table(); });
+
+  const pref = lsGet(prefKey);
+  if (pref) {
+    for (const k of ['axis', 'fmin', 'fmax', 'range', 'labels', 'size']) if (pref[k] && $('ka_' + k).querySelector(`option[value="${pref[k]}"]`)) $('ka_' + k).value = pref[k];
+    $('ka_snap').checked = pref.snap !== false;
+  }
+  chart.set({ log: $('ka_axis').value === 'log', fmin: +$('ka_fmin').value, fmax: +$('ka_fmax').value, range: +$('ka_range').value, labels: +$('ka_labels').value, snap: $('ka_snap').checked });
+  return { showBell };
+})();
+window.KA = KA;
+
 // ===== Start =====
 (function start() {
   const m = lsGet('gelaeut-mode');
@@ -931,6 +1512,11 @@ $('jsonIn').addEventListener('change', async (e) => {
     state.g = draft.g; state.sel = Math.min(draft.sel || 0, draft.g.bells.length - 1); state.dirty = !!draft.dirty;
   } else {
     state.g = demoGelaeut(); state.sel = 0; state.dirty = false;
+    // Beispiel-Spektren für die Demo-Glocken
+    [1, Math.pow(2, 2 / 12), Math.pow(2, 5 / 12)].forEach((r, i) => {
+      const smp = Spectrum.demoBell(44100, 6, r);
+      state.g.bells[i].spek = Spectrum.pack(Spectrum.analyze(smp, 44100, 16384), { file: 'Beispielklang (synthetisch)', a: 0, b: 6, dur: 6, date: Date.now() });
+    });
   }
   renderAll();
   initStore();
