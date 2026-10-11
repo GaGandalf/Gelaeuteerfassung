@@ -297,6 +297,8 @@ table { border-collapse: collapse; width: 100%; }
         <div class="gactions">
           <button class="btn primary" id="btnSave" type="button">Geläut speichern</button>
           <button class="btn bronze" id="btnExport" type="button">Excel exportieren</button>
+          <button class="btn" id="btnTxt" type="button">Text (.txt)</button>
+          <button class="btn ghost" id="btnTxtCopy" type="button">Text kopieren</button>
           <span class="grow"></span>
           <span id="status" class="status"></span>
         </div>
@@ -1260,7 +1262,7 @@ function snapshotForSave() {
   delete g.demo;
   return { name: g.name || '', ort: g.ort || '', a1: Number(g.a1) || 435, bells: g.bells, updatedAt: Date.now() };
 }
-function slug(s) { return (s || 'gelaeut').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'gelaeut'; }
+function slug(s) { return (s || 'gelaeut').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'gelaeut'; }
 
 async function save() {
   if (!state.g.name.trim()) { $('gName').focus(); toast('Bitte zuerst einen Namen für das Geläut eingeben.'); return; }
@@ -1451,6 +1453,64 @@ $('btnExport').onclick = async () => {
     const name = slug(state.g.name || 'Geläut').replace(/-/g, '_');
     await offerFile(`Glockendaten_${name}.xlsx`, blob);
   } catch (e) { console.error(e); toast('Export fehlgeschlagen.'); }
+};
+
+
+// ===== Text-Export (z. B. für Mitteilungen) =====
+// Ton in Glockenschreibweise: Oktave als ° ' '' …, Vorzeichen-Namen wie in Glockenlisten üblich (cis, es, fis, as, b)
+const ENH = { 'cis/des': 'cis', 'dis/es': 'es', 'fis/ges': 'fis', 'gis/as': 'as', 'ais/b': 'b' };
+function toneLabel(name) {
+  if (!name) return '';
+  const first = name.split(';')[0].trim();
+  const m = first.match(/^(\S+)(?:\s+([+-]\d+))?$/);
+  if (!m) return first;
+  const notePart = m[1], dev = m[2];
+  const om = notePart.match(/(\d)$/), oct = om ? om[1] : '';
+  const note = notePart.replace(/\d/g, '');
+  const upper = note[0] === note[0].toUpperCase();
+  const key = note.toLowerCase();
+  let base = ENH[key] || key;
+  let mark;
+  if (upper) { base = base[0].toUpperCase() + base.slice(1); mark = oct === '1' ? '₁' : oct === '2' ? '₂' : ''; }
+  else mark = oct === '0' ? '°' : "'".repeat(Number(oct || 0));
+  const d = dev ? Number(dev) : 0;
+  return `${base}${mark} ${d > 0 ? '+' + d : d < 0 ? '-' + Math.abs(d) : '±0'}`;
+}
+const chNum = (n) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+function roundKg(v) { const s = v < 100 ? 5 : v < 1000 ? 10 : 50; return Math.round(v / s) * s; }
+function gelaeutText() {
+  const out = [];
+  state.g.bells.forEach((b, i) => {
+    const r = computeBell(b, a1());
+    const lines = [`*Glocke ${i + 1}*`];
+    if ((b.name || '').trim()) lines.push(b.name.trim());
+    if (r.rows.nominal.ton) lines.push(`Ton: ${toneLabel(r.rows.nominal.ton)}`);
+    const g = num(b.gewicht);
+    if (g) lines.push(`Gewicht: ${chNum(g)}kg`);
+    else if (r.range) lines.push(`Gewicht: ca. ${chNum(roundKg(r.range[2].v))}kg`);
+    const d = num(b.durchmesser);
+    if (d) lines.push(`Durchmesser: ${chNum(d)}mm`);
+    const jahr = String(b.gussjahr || '').trim(), giesser = String(b.giesser || '').trim();
+    if (jahr && giesser) lines.push(`Gussjahr: ${jahr} von ${giesser}`);
+    else if (jahr) lines.push(`Gussjahr: ${jahr}`);
+    else if (giesser) lines.push(`Giesser: ${giesser}`);
+    out.push(lines.join('\r\n'));
+  });
+  return out.join('\r\n\r\n') + '\r\n';
+}
+$('btnTxt').onclick = () => {
+  const name = slug(state.g.name || 'Geläut').replace(/-/g, '_');
+  offerFile(`Gelaeut_${name}.txt`, new Blob([gelaeutText()], { type: 'text/plain;charset=utf-8' }));
+};
+$('btnTxtCopy').onclick = async () => {
+  const txt = gelaeutText().replace(/\r\n/g, '\n');
+  try { await navigator.clipboard.writeText(txt); toast('Text kopiert.'); }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    ta.remove(); toast(ok ? 'Text kopiert.' : 'Kopieren nicht möglich – bitte „Text (.txt)“ verwenden.');
+  }
 };
 
 // JSON sichern / laden
