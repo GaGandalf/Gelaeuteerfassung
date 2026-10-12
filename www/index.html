@@ -246,6 +246,31 @@ table { border-collapse: collapse; width: 100%; }
 .pk .used { font-size: .74rem; color: var(--patina); font-weight: 600; margin-left: 6px; }
 .err { color: var(--warn); font-weight: 600; }
 
+.ka-rec { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); }
+.ka-rec > * { min-width: 0; }
+.rdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--pin); vertical-align: 0; }
+.rec-row { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; }
+.btn.rec-btn { background: #b4471f; border-color: #b4471f; color: #fff; font-weight: 600; display: inline-flex; gap: 8px; align-items: center; }
+.btn.rec-btn .dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; }
+.btn.rec-btn.on .dot { border-radius: 2px; }
+.btn.mon.on { background: var(--patina-soft); border-color: var(--patina); color: var(--patina); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .btn.rec-btn.on { animation: pulse 1.2s ease-in-out infinite; } @keyframes pulse { 50% { filter: brightness(1.25); } } }
+.timer { font-family: var(--f-mono); font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 5.5ch; }
+.meter { display: grid; gap: 3px; }
+.meter .bar { height: 14px; border-radius: 3px; background: linear-gradient(90deg, var(--soft) 0 75%, color-mix(in srgb, var(--bronze) 18%, var(--soft)) 75% 93%, color-mix(in srgb, var(--pin) 22%, var(--soft)) 93%); overflow: hidden; position: relative; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--patina); }
+.meter .fill.hot { background: var(--bronze); }
+.meter .fill.clip { background: var(--pin); }
+.meter .hold { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); left: 0; }
+.meter .scale { position: relative; height: 12px; font-family: var(--f-mono); font-size: .64rem; color: var(--muted); }
+.meter .scale span { position: absolute; transform: translateX(-50%); }
+.meter .scale span:last-child { transform: translateX(-100%); }
+.led { font-family: var(--f-mono); font-size: .72rem; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+.led.on { background: var(--pin); color: #fff; }
+.rec-status { font-size: .84rem; color: var(--muted); }
+.rec-status b { color: var(--ink); font-weight: 600; }
+.okmsg { color: var(--patina); font-weight: 600; }
+
 /* Übersicht */
 .ov { min-width: 520px; }
 .ov th, .ov td { padding: 6px 10px; border-bottom: 1px solid var(--soft); text-align: center; white-space: nowrap; }
@@ -349,10 +374,34 @@ table { border-collapse: collapse; width: 100%; }
           <h3>Klanganalyse <small>Frequenzspektrum einer Tonaufnahme, die Spitzen lassen sich als Teiltöne übernehmen</small></h3>
           <div class="drop" id="ka_drop">
             <label class="btn small primary" for="ka_file">Tondatei wählen</label>
+            <button class="btn small" id="ka_recOpen" type="button" hidden><span class="rdot"></span> Aufnehmen</button>
             <input id="ka_file" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac,.opus,.webm" class="sr">
             <button class="btn small" id="ka_play" type="button" hidden>▶ Abspielen</button>
             <button class="btn small ghost danger" id="ka_del" type="button" hidden>Spektrum entfernen</button>
             <div class="file" id="ka_info">WAV, MP3, M4A, OGG oder FLAC hierher ziehen oder wählen. Die Datei wird nur auf diesem Gerät ausgewertet; gespeichert wird das Spektrum.</div>
+          </div>
+          <div class="ka-rec" id="ka_rec" hidden>
+            <div class="ctrl">
+              <label>Mikrofon<select id="ka_rDev"><option value="">Standard-Mikrofon</option></select></label>
+              <label>Abtastrate<select id="ka_rRate"><option value="44100">44.1 kHz</option><option value="48000" selected>48 kHz</option><option value="96000">96 kHz</option></select></label>
+              <label>WAV-Bittiefe<select id="ka_rBits"><option value="16">16 Bit</option><option value="24" selected>24 Bit</option></select></label>
+              <label>Höchstdauer<select id="ka_rMax"><option value="30">30 s</option><option value="60" selected>1 min</option><option value="120">2 min</option><option value="300">5 min</option></select></label>
+              <label class="chk" title="Das Gerät darf die Mikrofon-Verstärkung selbst absenken. Nur verwenden, wenn die Aufnahme trotz Abstand übersteuert."><input type="checkbox" id="ka_rLoud"> Sehr laut: Verstärkung automatisch absenken</label>
+            </div>
+            <div class="rec-row">
+              <button class="btn small mon" id="ka_rMon" type="button">Pegel prüfen</button>
+              <button class="btn rec-btn" id="ka_rBtn" type="button"><span class="dot"></span><span id="ka_rBtnTxt">Aufnahme starten</span></button>
+              <span class="timer" id="ka_rTime">0:00.0</span>
+              <span class="led" id="ka_rLed">ÜBERSTEUERT</span>
+              <button class="btn small ghost" id="ka_rClose" type="button">Schliessen</button>
+            </div>
+            <div class="meter" aria-label="Eingangspegel">
+              <div class="bar"><div class="fill" id="ka_rFill"></div><div class="hold" id="ka_rHold"></div></div>
+              <div class="scale"><span style="left:0;transform:none">−60 dB</span><span style="left:33.3%">−40</span><span style="left:66.7%">−20</span><span style="left:90%">−6</span><span style="left:100%">0</span></div>
+            </div>
+            <div class="rec-status" id="ka_rStatus">Tipp: Zuerst „Pegel prüfen“ und die Glocke einmal anschlagen lassen. Beim ersten Start fragt das Gerät nach dem Mikrofon.</div>
+            <div class="rec-row" id="ka_rAfter" hidden><button class="btn small" id="ka_rSave" type="button">Aufnahme als WAV speichern</button></div>
+            <p class="hint" style="margin:0"><b>Laute Glocken:</b> Abstand halten (einige Meter, nicht unter dem Schallaustritt), Mikrofon nicht auf die Glocke richten. Übersteuerte Stellen werden erkannt, in der Wellenform rot markiert und automatisch aus der Auswertung genommen. Die Aufnahme enthält 3 Sekunden Vorlauf.</p>
           </div>
           <div class="ka-body" id="ka_body" hidden>
             <div class="ctrl">
@@ -980,7 +1029,7 @@ function SpectrumChart(canvas, opts) {
 // ===== Wellenform mit Bereichsauswahl =====
 function WaveStrip(canvas, onSelect) {
   const ctx = canvas.getContext('2d');
-  let data = null, sr = 44100, sel = null, W = 0, H = 0, dpr = 1, env = null;
+  let data = null, sr = 44100, sel = null, W = 0, H = 0, dpr = 1, env = null, marks = null, markBlock = 1024;
   const css = (n) => getComputedStyle(canvas).getPropertyValue(n).trim();
   function resize() { dpr = devicePixelRatio || 1; const r = canvas.getBoundingClientRect(); W = r.width; H = r.height; canvas.width = W * dpr; canvas.height = H * dpr; env = null; draw(); }
   function envelope() {
@@ -1002,6 +1051,11 @@ function WaveStrip(canvas, onSelect) {
     if (sel) {
       ctx.fillStyle = css('--sel'); ctx.fillRect(sel[0] / data.length * W, 0, (sel[1] - sel[0]) / data.length * W, H);
     }
+    if (marks) { // übersteuerte Stellen
+      ctx.fillStyle = css('--pin'); ctx.globalAlpha = .28;
+      for (let b = 0; b < marks.length; b++) if (marks[b]) { const x = (b * markBlock) / data.length * W; ctx.fillRect(x, 0, Math.max(1, markBlock / data.length * W), H); }
+      ctx.globalAlpha = 1;
+    }
     ctx.fillStyle = css('--wave');
     for (let c = 0; c < env.mins.length; c++) {
       const a = mid - (env.maxs[c] / env.peak) * (mid - 3), b = mid - (env.mins[c] / env.peak) * (mid - 3);
@@ -1022,10 +1076,153 @@ function WaveStrip(canvas, onSelect) {
   });
   new ResizeObserver(resize).observe(canvas);
   return {
-    set(d, rate) { data = d; sr = rate; sel = [0, d.length]; env = null; draw(); },
+    set(d, rate) { data = d; sr = rate; sel = [0, d.length]; env = null; marks = null; draw(); },
+    setMarks(f, block = 1024) { marks = f; markBlock = block; draw(); },
     get sel() { return sel; }, setSel(s) { sel = s; draw(); },
   };
 }
+
+// ===== Aufnahme direkt im Browser / in der App (unbearbeitetes PCM, als WAV speicherbar) =====
+const Recorder = (() => {
+  const supported = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.AudioContext || window.webkitAudioContext));
+
+  async function inputs() {
+    try { return (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput'); } catch { return []; }
+  }
+
+  const WORKLET = `class RecProc extends AudioWorkletProcessor {
+    process(inputs) { const ch = inputs[0] && inputs[0][0]; if (ch) this.port.postMessage(ch.slice(0)); return true; }
+  }
+  registerProcessor('rec-proc', RecProc);`;
+
+  // Öffnet das Mikrofon. Zuerst nur Pegelanzeige (mit 3 s Vorlauf-Puffer), record() startet die Aufnahme.
+  // laut = true: Gerät darf die Verstärkung automatisch absenken (für sehr laute Glocken)
+  async function open({ deviceId = '', sampleRate = 48000, maxSeconds = 300, preroll = 3, laut = false, onLevel, onAutoStop } = {}) {
+    const constraints = {
+      audio: {
+        deviceId: deviceId ? { exact: deviceId } : undefined,
+        sampleRate: { ideal: sampleRate }, channelCount: { ideal: 1 },
+        echoCancellation: false, noiseSuppression: false, autoGainControl: !!laut,
+      },
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const track = stream.getAudioTracks()[0];
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx;
+    try { ctx = new AC({ sampleRate }); } catch { ctx = new AC(); }
+    await ctx.resume();
+    const sr = ctx.sampleRate;
+    const src = ctx.createMediaStreamSource(stream);
+    let chunks = [], length = 0, recording = false, stopped = false;
+    let peak = 0, hold = 0, holdT = 0, clipNow = false, clipCount = 0, sessMax = 0, fNear = 0, fTotal = 0;
+    const sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+    const take = (data) => {
+      if (stopped) return;
+      for (let i = 0; i < data.length; i++) {
+        const v = Math.abs(data[i]); if (v > peak) peak = v; if (v > sessMax) sessMax = v;
+        if (v >= 0.99) clipNow = true;
+        if (v >= 0.9 * sessMax) fNear++;
+      }
+      fTotal += data.length;
+      chunks.push(data); length += data.length;
+      if (!recording) { // nur Vorlauf behalten
+        while (chunks.length > 1 && length - chunks[0].length >= preroll * sr) length -= chunks.shift().length;
+      } else if (length >= maxSeconds * sr && onAutoStop) onAutoStop();
+    };
+    let node;
+    if (ctx.audioWorklet && window.AudioWorkletNode) {
+      const url = URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' }));
+      try { await ctx.audioWorklet.addModule(url); node = new AudioWorkletNode(ctx, 'rec-proc'); node.port.onmessage = (e) => take(e.data); } catch { node = null; }
+      URL.revokeObjectURL(url);
+    }
+    if (!node) { // Ersatz für ältere Geräte
+      node = ctx.createScriptProcessor(4096, 1, 1);
+      node.onaudioprocess = (e) => take(new Float32Array(e.inputBuffer.getChannelData(0)));
+    }
+    src.connect(node); node.connect(sink);
+    let raf = 0;
+    const tick = () => {
+      if (stopped) return;
+      const now = performance.now();
+      if (peak >= hold || now - holdT > 1500) { hold = peak; holdT = now; }
+      // Begrenzer des Geräts: viele Werte knapp unter dem bisherigen Höchstwert
+      if (sessMax > 0.3 && fTotal > 0 && fNear / fTotal > 0.08 && peak >= 0.85 * sessMax) clipNow = true;
+      fNear = 0; fTotal = 0;
+      if (clipNow && recording) clipCount++;
+      if (onLevel) onLevel({ db: peak > 0 ? 20 * Math.log10(peak) : -Infinity, holdDb: hold > 0 ? 20 * Math.log10(hold) : -Infinity, clip: clipNow, clipCount, recording, seconds: recording ? length / sr : 0 });
+      peak = 0; clipNow = false; raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const settings = track.getSettings ? track.getSettings() : {};
+    async function close() {
+      stopped = true; cancelAnimationFrame(raf);
+      try { src.disconnect(); node.disconnect(); } catch {}
+      stream.getTracks().forEach((t) => t.stop());
+      try { await ctx.close(); } catch {}
+    }
+    return {
+      sampleRate: sr, label: track.label || 'Mikrofon',
+      processing: { echo: settings.echoCancellation, noise: settings.noiseSuppression, agc: settings.autoGainControl },
+      get recording() { return recording; },
+      record() { recording = true; clipCount = 0; },
+      async stop() {
+        if (stopped) return null;
+        const wasRec = recording; await close();
+        if (!wasRec) return null;
+        const out = new Float32Array(length); let o = 0;
+        for (const c of chunks) { out.set(c, o); o += c.length; }
+        chunks = [];
+        return { samples: out, sr };
+      },
+      close,
+    };
+  }
+
+  // Übersteuerung finden: Werte am Anschlag (≥ 0.99) oder ein Begrenzer des Geräts, der die Spitzen
+  // unter 0 dB abflacht. Glockenklänge haben viele Teiltöne und damit nur ganz wenige Werte nahe am
+  // Höchstwert; häufen sie sich dort, ist die Aufnahme begrenzt worden.
+  // Liefert Blöcke à 1024 Samples mit Markierung und den längsten sauberen Abschnitt.
+  function clipping(samples, sr, block = 1024) {
+    const n = samples.length, nb = Math.ceil(n / block), flags = new Uint8Array(nb);
+    let max = 0; for (let i = 0; i < n; i++) { const v = Math.abs(samples[i]); if (v > max) max = v; }
+    const none = { flags, clipped: 0, seconds: 0, best: [0, n], max };
+    if (max < 0.2) return none;
+    const lvl = 0.9 * max; let near = 0, hard = 0;
+    for (let i = 0; i < n; i++) { const v = Math.abs(samples[i]); if (v >= lvl) near++; if (v >= 0.99) hard++; }
+    const limited = near / n > 0.002;
+    if (hard < 3 && !limited) return none;
+    const cnt = new Uint16Array(nb);
+    for (let i = 0; i < n; i++) { const v = Math.abs(samples[i]); if (v >= 0.99 || (limited && v >= lvl)) cnt[(i / block) | 0]++; }
+    for (let b = 0; b < nb; b++) if (cnt[b] >= 3) flags[b] = 1;
+    // Umgebung mitmarkieren (Übergänge)
+    const f2 = flags.slice(); for (let b = 0; b < nb; b++) if (flags[b]) { if (b > 0) f2[b - 1] = 1; if (b + 1 < nb) f2[b + 1] = 1; }
+    let clipped = 0, bestLen = 0, bestStart = 0, cur = 0, curStart = 0;
+    for (let b = 0; b <= nb; b++) {
+      if (b < nb && !f2[b]) { if (cur === 0) curStart = b; cur++; }
+      else { if (cur > bestLen) { bestLen = cur; bestStart = curStart; } cur = 0; }
+      if (b < nb && f2[b]) clipped++;
+    }
+    if (!clipped) return none;
+    return { flags: f2, clipped, seconds: (clipped * block) / sr, best: [bestStart * block, Math.min(n, (bestStart + bestLen) * block)], max };
+  }
+
+  // WAV (PCM 16 oder 24 Bit, mono)
+  function wav(samples, sr, bits = 24) {
+    const bps = bits / 8, n = samples.length, buf = new ArrayBuffer(44 + n * bps), v = new DataView(buf);
+    const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + n * bps, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+    v.setUint32(28, sr * bps, true); v.setUint16(32, bps, true); v.setUint16(34, bits, true); str(36, 'data'); v.setUint32(40, n * bps, true);
+    let o = 44;
+    for (let i = 0; i < n; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      if (bits === 16) { v.setInt16(o, Math.round(s * 32767), true); o += 2; }
+      else { const x = Math.round(s * 8388607); v.setUint8(o, x & 255); v.setUint8(o + 1, (x >> 8) & 255); v.setUint8(o + 2, (x >> 16) & 255); o += 3; }
+    }
+    return new Blob([buf], { type: 'audio/wav' });
+  }
+  return { supported, inputs, open, clipping, wav };
+})();
 
 </script>
 <script>
@@ -1630,7 +1827,7 @@ const KA = (() => {
   }
   function info(b, rec) {
     const s = b.spek;
-    if (rec) return `<strong>${esc(rec.name)}</strong> · ${(rec.samples.length / rec.sr).toFixed(1)} s · Ausschnitt ${(rec.sel[0] / rec.sr).toFixed(2)}–${(rec.sel[1] / rec.sr).toFixed(2)} s`;
+    if (rec) return `<strong>${esc(rec.name)}</strong> · ${(rec.samples.length / rec.sr).toFixed(1)} s · Ausschnitt ${(rec.sel[0] / rec.sr).toFixed(2)}–${(rec.sel[1] / rec.sr).toFixed(2)} s${rec.clip && rec.clip.clipped ? ` · <span class="err">${rec.clip.seconds.toFixed(1)} s übersteuert (rot markiert, nicht ausgewertet)</span>` : ''}`;
     if (s) return `<strong>${esc(s.file || 'Aufnahme')}</strong> · Ausschnitt ${(+s.a).toFixed(2)}–${(+s.b).toFixed(2)} s · gespeichert ${new Date(s.date).toLocaleDateString('de-CH')}. Für eine neue Auswertung (anderer Ausschnitt oder FFT-Grösse) die Aufnahme erneut laden.`;
     return 'WAV, MP3, M4A, OGG oder FLAC hierher ziehen oder wählen. Die Datei wird nur auf diesem Gerät ausgewertet; gespeichert wird das Spektrum.';
   }
@@ -1644,7 +1841,7 @@ const KA = (() => {
     $('ka_waveBox').hidden = !rec;
     $('ka_size').disabled = !rec;
     $('ka_pin').textContent = '—'; $('ka_pinT').textContent = '';
-    if (rec) { wave.set(rec.samples, rec.sr); wave.setSel(rec.sel); $('ka_sel').textContent = `${(rec.sel[0] / rec.sr).toFixed(2)} – ${(rec.sel[1] / rec.sr).toFixed(2)} s`; }
+    if (rec) { wave.set(rec.samples, rec.sr); wave.setMarks(rec.clip && rec.clip.clipped ? rec.clip.flags : null); wave.setSel(rec.sel); $('ka_sel').textContent = `${(rec.sel[0] / rec.sr).toFixed(2)} – ${(rec.sel[1] / rec.sr).toFixed(2)} s`; }
     if (b.spek) {
       const { spec, peaks } = Spectrum.unpack(b.spek);
       chart.set({ a1: a1() });
@@ -1696,6 +1893,22 @@ const KA = (() => {
     toast(`${PK.find((q) => q.key === k).label}: ${f} Hz übernommen.`);
   });
 
+  // Aufnahme/Datei übernehmen: Übersteuerung prüfen, sauberen Ausschnitt wählen (sonst ab dem Anschlag), höchstens 20 s
+  function useSamples(b, mono, sr, name) {
+    const n = mono.length, cl = Recorder.clipping(mono, sr);
+    let start, end;
+    if (cl.clipped) { start = cl.best[0]; end = Math.min(cl.best[1], start + sr * 20); }
+    else {
+      let pk = 0, pv = 0; for (let i = 0; i < n; i += 64) { const v = Math.abs(mono[i]); if (v > pv) { pv = v; pk = i; } }
+      start = Math.max(0, pk - Math.round(sr * 0.05)); end = Math.min(n, start + sr * 20);
+    }
+    audio.set(b, { samples: mono, sr, name, sel: [start, end], clip: cl });
+    if (bell() !== b) return cl;
+    $('ka_body').hidden = false; $('ka_waveBox').hidden = false;
+    wave.set(mono, sr); wave.setMarks(cl.clipped ? cl.flags : null); wave.setSel([start, end]);
+    analyze();
+    return cl;
+  }
   async function load(file) {
     const b = bell();
     $('ka_info').innerHTML = `<strong>${esc(file.name)}</strong> wird gelesen …`;
@@ -1706,14 +1919,7 @@ const KA = (() => {
       const au = await ac.decodeAudioData(buf.slice(0));
       const n = au.length, ch = au.numberOfChannels, mono = new Float32Array(n);
       for (let c = 0; c < ch; c++) { const d = au.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ch; }
-      // Standard: ab dem Anschlag (lautester Moment), höchstens 20 s
-      let pk = 0, pv = 0; for (let i = 0; i < n; i += 64) { const v = Math.abs(mono[i]); if (v > pv) { pv = v; pk = i; } }
-      const start = Math.max(0, pk - Math.round(au.sampleRate * 0.05));
-      audio.set(b, { samples: mono, sr: au.sampleRate, name: file.name, sel: [start, Math.min(n, start + au.sampleRate * 20)] });
-      if (bell() !== b) return;
-      $('ka_body').hidden = false; $('ka_waveBox').hidden = false;
-      const rec = audio.get(b); wave.set(rec.samples, rec.sr); wave.setSel(rec.sel);
-      analyze();
+      useSamples(b, mono, au.sampleRate, file.name);
     } catch {
       $('ka_info').innerHTML = `<span class="err">„${esc(file.name)}“ konnte nicht gelesen werden.</span> Dieses Format unterstützt das Gerät nicht. Bitte als WAV oder MP3 speichern und erneut laden.`;
     }
@@ -1740,6 +1946,93 @@ const KA = (() => {
   ['ka_axis', 'ka_fmin', 'ka_fmax', 'ka_range', 'ka_labels', 'ka_snap'].forEach((id) => $(id).addEventListener('change', (e) => { e.stopPropagation(); view(); }));
   $('ka_size').addEventListener('change', (e) => { e.stopPropagation(); view(); analyze(); });
   $('gA1').addEventListener('change', () => { chart.set({ a1: a1() }); table(); });
+
+
+  // ----- Aufnahme mit dem Mikrofon -----
+  const R = { h: null, target: null, last: null, ledT: 0 };
+  const recPrefKey = 'gelaeut-rec';
+  const fmtT = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+  const pctDb = (db) => (db === -Infinity ? 0 : Math.max(0, Math.min(100, ((db + 60) / 60) * 100)));
+  // Auf claude.ai ist das Mikrofon gesperrt; dort bleibt nur das Laden von Dateien.
+  const canRecord = Recorder.supported() && !(window.claude && !window.Capacitor);
+  $('ka_recOpen').hidden = !canRecord;
+  const rp = lsGet(recPrefKey);
+  if (rp) { for (const k of ['Rate', 'Bits', 'Max']) if (rp[k] && $('ka_r' + k).querySelector(`option[value="${rp[k]}"]`)) $('ka_r' + k).value = rp[k]; $('ka_rLoud').checked = !!rp.Loud; }
+  ['ka_rRate', 'ka_rBits', 'ka_rMax', 'ka_rLoud', 'ka_rDev'].forEach((id) => $(id).addEventListener('change', (e) => {
+    e.stopPropagation();
+    lsSet(recPrefKey, { Rate: $('ka_rRate').value, Bits: $('ka_rBits').value, Max: $('ka_rMax').value, Loud: $('ka_rLoud').checked });
+  }));
+  async function fillDevices() {
+    const list = await Recorder.inputs(), sel = $('ka_rDev'), cur = sel.value;
+    sel.innerHTML = '<option value="">Standard-Mikrofon</option>' + list.filter((d) => d.deviceId && d.deviceId !== 'default').map((d, i) => `<option value="${esc(d.deviceId)}">${esc(d.label || 'Mikrofon ' + (i + 1))}</option>`).join('');
+    sel.value = cur;
+  }
+  function level(l) {
+    $('ka_rTime').textContent = fmtT(l.seconds);
+    const f = $('ka_rFill'); f.style.width = pctDb(l.db) + '%';
+    f.className = 'fill' + (l.clip || l.db > -1 ? ' clip' : l.db > -6 ? ' hot' : '');
+    $('ka_rHold').style.left = `calc(${pctDb(l.holdDb)}% - 1px)`;
+    if (l.clip) { $('ka_rLed').classList.add('on'); clearTimeout(R.ledT); R.ledT = setTimeout(() => $('ka_rLed').classList.remove('on'), 1200); }
+  }
+  function micInfo(h) {
+    const want = +$('ka_rRate').value, p = h.processing;
+    const forced = [p.echo, p.noise].some((x) => x === true) || (!$('ka_rLoud').checked && p.agc === true);
+    return `<b>${esc(h.label)}</b> · <b>${(h.sampleRate / 1000).toFixed(1)} kHz</b>${h.sampleRate !== want ? ` (gewünscht ${(want / 1000).toFixed(1)} kHz, vom Gerät nicht unterstützt)` : ''}${$('ka_rLoud').checked ? ' · Verstärkung automatisch' : ''}${forced ? ' · <span class="err">Das Gerät lässt die Tonbearbeitung nicht ganz abschalten.</span>' : ''}`;
+  }
+  async function openMic() {
+    try {
+      R.h = await Recorder.open({ deviceId: $('ka_rDev').value, sampleRate: +$('ka_rRate').value, maxSeconds: +$('ka_rMax').value, laut: $('ka_rLoud').checked, onLevel: level, onAutoStop: () => stopRec() });
+      fillDevices(); return R.h;
+    } catch (e) {
+      const msg = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'Der Zugriff auf das Mikrofon wurde nicht erlaubt. Bitte in den Browser- bzw. App-Einstellungen freigeben.' : e && e.name === 'NotFoundError' ? 'Kein Mikrofon gefunden.' : 'Das Mikrofon konnte nicht geöffnet werden.';
+      $('ka_rStatus').innerHTML = `<span class="err">${msg}</span>`; return null;
+    }
+  }
+  function resetRecUi() {
+    $('ka_rMon').classList.remove('on'); $('ka_rMon').textContent = 'Pegel prüfen'; $('ka_rMon').disabled = false;
+    $('ka_rBtn').classList.remove('on'); $('ka_rFill').style.width = '0'; $('ka_rHold').style.left = '0';
+  }
+  async function closeMic() { if (R.h) { const h = R.h; R.h = null; if (h.recording) await h.stop(); else await h.close(); } resetRecUi(); $('ka_rBtnTxt').textContent = 'Aufnahme starten'; }
+  $('ka_recOpen').onclick = () => { $('ka_rec').hidden = !$('ka_rec').hidden; if ($('ka_rec').hidden) closeMic(); };
+  $('ka_rClose').onclick = () => { closeMic(); $('ka_rec').hidden = true; };
+  $('ka_rMon').onclick = async () => {
+    if (R.h && !R.h.recording) { await closeMic(); $('ka_rStatus').textContent = 'Pegelprüfung beendet.'; return; }
+    if (R.h || !(await openMic())) return;
+    $('ka_rMon').classList.add('on'); $('ka_rMon').textContent = 'Prüfung beenden';
+    $('ka_rStatus').innerHTML = 'Pegel prüfen mit ' + micInfo(R.h) + '. Es wird noch nichts aufgenommen.';
+  };
+  async function startRec() {
+    if (!R.h && !(await openMic())) return;
+    R.target = bell(); R.h.record();
+    $('ka_rMon').classList.remove('on'); $('ka_rMon').textContent = 'Pegel prüfen'; $('ka_rMon').disabled = true;
+    $('ka_rBtn').classList.add('on'); $('ka_rBtnTxt').textContent = 'Aufnahme beenden'; $('ka_rAfter').hidden = true;
+    $('ka_rStatus').innerHTML = `Nimmt auf für <b>Glocke ${state.g.bells.indexOf(R.target) + 1}</b> mit ` + micInfo(R.h) + ' · inkl. 3 s Vorlauf';
+  }
+  async function stopRec() {
+    if (!R.h || !R.h.recording) return;
+    const h = R.h; R.h = null;
+    const r = await h.stop();
+    resetRecUi(); $('ka_rBtnTxt').textContent = 'Neue Aufnahme';
+    if (!r || r.samples.length < r.sr * 0.3) { $('ka_rStatus').textContent = 'Die Aufnahme war zu kurz.'; return; }
+    const d = new Date(), pad = (n) => String(n).padStart(2, '0');
+    const b = R.target && state.g.bells.includes(R.target) ? R.target : bell();
+    const no = state.g.bells.indexOf(b) + 1;
+    const name = `Aufnahme_Glocke${no}_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+    R.last = { ...r, name };
+    $('ka_rAfter').hidden = false;
+    const cl = useSamples(b, r.samples, r.sr, name);
+    const dur = r.samples.length / r.sr;
+    let msg = `Aufgenommen für Glocke ${no}: <b>${dur.toFixed(1)} s</b> · ${(r.sr / 1000).toFixed(1)} kHz · Spitzenpegel ${(20 * Math.log10(Math.max(cl.max, 1e-9))).toFixed(1)} dB`;
+    if (cl.clipped) {
+      const ok = (cl.best[1] - cl.best[0]) / r.sr;
+      msg += ok >= 1
+        ? ` · <span class="err">${cl.seconds.toFixed(1)} s übersteuert</span> – ausgewertet wird automatisch der saubere Teil ${(cl.best[0] / r.sr).toFixed(1)}–${(Math.min(cl.best[1], cl.best[0] + r.sr * 20) / r.sr).toFixed(1)} s.`
+        : ' · <span class="err">Fast durchgehend übersteuert – bitte mit mehr Abstand oder „Sehr laut“ erneut aufnehmen.</span>';
+    } else msg += ' · <span class="okmsg">nicht übersteuert</span>';
+    $('ka_rStatus').innerHTML = msg;
+  }
+  $('ka_rBtn').onclick = () => (R.h && R.h.recording ? stopRec() : startRec());
+  $('ka_rSave').onclick = () => { if (R.last) offerFile(R.last.name + '.wav', Recorder.wav(R.last.samples, R.last.sr, +$('ka_rBits').value)); };
 
   const pref = lsGet(prefKey);
   if (pref) {
