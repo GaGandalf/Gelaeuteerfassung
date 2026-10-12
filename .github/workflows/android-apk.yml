@@ -32,6 +32,11 @@ jobs:
           npx cap add android
           npx --yes @capacitor/assets generate --android || echo "Icons: Standard wird verwendet"
           npx cap sync android
+      - name: Mikrofon-Berechtigung (für Aufnahmen)
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q RECORD_AUDIO $M || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n</manifest>#' $M
+          grep -n "uses-permission" $M
       - name: APK bauen
         working-directory: android
         run: |
