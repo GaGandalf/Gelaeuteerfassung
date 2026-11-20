@@ -39,6 +39,26 @@ die Web-App auf dem Home-Bildschirm bietet dieselben Funktionen.
 **Excel-Export auf dem Handy:** In der Android-App öffnet sich das Teilen-Menü (speichern, per Mail senden, in Drive ablegen …).
 In der Web-App landet die Datei im Download-Ordner.
 
+## Für Entwickler: Aufbau des Codes
+
+Die App kommt ohne Build-Schritt aus: Der Ordner `www` wird so ausgeliefert, wie er ist.
+
+| Datei | Inhalt |
+|---|---|
+| `www/index.html` | Aufbau der Seite (nur HTML) |
+| `www/css/app.css` | Gestaltung inkl. Dunkelmodus |
+| `www/js/daten.js` | Frequenz- und Rippentabelle sowie Excel-Vorlage aus dem Factsheet (nicht von Hand ändern) |
+| `www/js/rechnung.js` | Berechnungskern: Töne, Nominal, Abweichungen, Rippe, Gewicht (wie Excel „Töne_Rippe“) |
+| `www/js/spektrum.js` | FFT, Spitzensuche, Spektrum-Diagramm mit Zoom, Wellenform |
+| `www/js/aufnahme.js` | Mikrofon-Aufnahme, Erkennung von Übersteuerung, WAV-Export |
+| `www/js/app.js` | Zustand, Darstellung, Eingaben, Speichern auf dem Gerät |
+| `www/js/export.js` | Excel-, Text- und JSON-Export / -Import |
+| `www/js/klanganalyse.js` | Bereich „Klanganalyse“ der Glocke |
+| `www/js/start.js` | Startet die App (Entwurf oder Beispieldaten) |
+| `www/sw.js` | Offline-Cache; bei neuen Dateien die Liste ergänzen und `CACHE` hochzählen |
+
+Lokal ansehen: im Ordner `www` z. B. `python3 -m http.server` starten und `http://localhost:8000` öffnen.
+
 ## Für Entwickler: lokal bauen
 
 ```bash
