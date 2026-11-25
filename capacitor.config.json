@@ -3,6 +3,6 @@
   "appName": "Geläut-Erfassung",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#f1f0ec"
+    "backgroundColor": "#121212"
   }
 }
