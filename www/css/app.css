@@ -82,6 +82,19 @@ button { cursor: pointer; }
 .empty { padding: 14px 16px 18px; color: var(--muted); font-size: .88rem; }
 .side-foot { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* Dropbox-Abgleich in der Seitenleiste */
+.sync { border-top: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 8px; }
+.sync-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sync-state { font-size: .8rem; color: var(--muted); margin-left: auto; text-align: right; }
+.sync-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync-dot.ok { background: #5cb85c; }
+.sync-dot.warn, .sync-dot.busy { background: var(--hl); }
+.sync-dot.err { background: var(--warn); }
+.sync-dot.busy { animation: pulse 1s ease-in-out infinite; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.sync-login { display: grid; gap: 8px; font-size: .84rem; }
+.sync-login ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+
 /* Buttons */
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 5px; padding: 7px 12px; font-weight: 500; white-space: nowrap; }
 .btn:hover { border-color: var(--muted); }
