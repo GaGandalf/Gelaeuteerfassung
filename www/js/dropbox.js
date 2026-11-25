@@ -3,7 +3,7 @@
 // Gespeichert wird immer zuerst auf dem Gerät; der Abgleich lädt hoch und herunter, sobald Netz da ist.
 // Anmeldung: OAuth mit PKCE ohne Rücksprungadresse – Dropbox zeigt einen Code, der in der App eingefügt wird.
 // Der App-Schlüssel ist öffentlich (kein Geheimnis); er stammt aus der Dropbox-Entwicklerkonsole, siehe LIESMICH.md.
-const DROPBOX_APP_KEY = '';
+const DROPBOX_APP_KEY = '5s1w1yqx22klkbq';
 
 const DBX = (() => {
   const AUTH_URL = 'https://www.dropbox.com/oauth2/authorize';
