@@ -2,7 +2,7 @@
   "name": "gelaeut-erfassung",
   "version": "1.0.0",
   "private": true,
-  "description": "Gel\u00e4ut-Erfassung nach Glocken-Factsheet \u2013 Web-App und Android-App",
+  "description": "Geläut-Erfassung nach Glocken-Factsheet – Web-App und Android-App",
   "scripts": {
     "android:add": "cap add android",
     "android:sync": "cap sync android",
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
+    "@capacitor/browser": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/filesystem": "^7.0.0",
     "@capacitor/share": "^7.0.0"

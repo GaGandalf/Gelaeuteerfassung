@@ -471,6 +471,7 @@ function save() {
   }
   state.g.id = id; state.g.demo = false;
   loadLocalList(); setDirty(false);
+  DBX.changed(id);
   toast(`„${body.name}“ gespeichert.`);
 }
 function openSaved(s) {
@@ -483,6 +484,7 @@ function deleteSaved(s) {
   try { const all = localAll(); delete all[s.id]; writeLocal(all); } catch { toast('Löschen fehlgeschlagen.'); return; }
   if (state.g.id === s.id) { state.g.id = null; setDirty(true); }
   loadLocalList();
+  DBX.removed(s.id);
   toast(`„${s.name || 'Geläut'}“ gelöscht.`);
 }
 $('btnSave').onclick = save;

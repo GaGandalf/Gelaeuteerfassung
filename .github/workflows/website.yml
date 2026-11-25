@@ -10,21 +10,29 @@ permissions:
   pages: write
   id-token: write
 
+# Nur eine Veröffentlichung gleichzeitig; eine laufende wird nicht abgebrochen
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  # Hochladen und Veröffentlichen in getrennten Jobs (wie GitHubs Vorlage):
+  # im selben Job fand deploy-pages das eben hochgeladene Paket teils noch nicht.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: www
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4

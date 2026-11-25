@@ -15,4 +15,5 @@
   }
   loadLocalList();
   renderAll();
+  DBX.init();
 })();

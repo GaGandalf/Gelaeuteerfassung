@@ -25,6 +25,28 @@ Regelmässig sichern lohnt sich, weil ein Browser gespeicherte Daten beim Lösch
 
 Jede spätere Änderung an den Dateien (z. B. neue Version von `www/index.html`) baut Website und App automatisch neu.
 
+## Geläute über Dropbox abgleichen
+
+Statt JSON-Dateien hin und her zu laden, können alle Geräte ihre Geläute über die eigene Dropbox abgleichen.
+Die App sieht dabei nur ihren eigenen Ordner `Dropbox/Apps/<App-Name>/gelaeute/`; jedes Geläut ist dort eine JSON-Datei
+(mit dem Versionsverlauf von Dropbox). Gespeichert wird immer zuerst auf dem Gerät – ohne Netz (z. B. im Turm) wird
+später automatisch nachgeladen. Ändert man dasselbe Geläut auf zwei Geräten, gewinnt die neuere Fassung.
+
+**Einmalig: Dropbox-App anlegen (ca. 5 Minuten)**
+
+1. <https://www.dropbox.com/developers/apps> öffnen und mit dem eigenen Dropbox-Konto anmelden.
+2. **Create app** → **Scoped access** → **App folder** → Namen wählen (muss weltweit eindeutig sein, z. B. `Gelaeut-Erfassung-XY`).
+3. Im Reiter **Permissions** diese drei Rechte ankreuzen und unten **Submit** klicken:
+   `files.metadata.read`, `files.content.read`, `files.content.write`.
+4. Im Reiter **Settings** den **App key** kopieren und in `www/js/dropbox.js` bei `DROPBOX_APP_KEY` eintragen.
+   Der App key ist kein Geheimnis; das **App secret** wird nicht gebraucht und gehört nicht in die App.
+   Eine Redirect-URI ist nicht nötig.
+
+**Auf jedem Gerät einmal verbinden:** In der Seitenleiste unter „Dropbox“ auf **Verbinden** →
+**Dropbox-Anmeldung öffnen** → bei Dropbox **Zulassen** → den angezeigten Code kopieren, in der App einfügen, **Verbinden**.
+Beim ersten Verbinden werden die Geläute des Geräts hochgeladen und die der anderen Geräte heruntergeladen.
+**Trennen** beendet den Abgleich; die Geläute bleiben auf dem Gerät.
+
 ## Auf dem Handy
 
 **Android – als App (APK):** Auf dem Handy die Release-Seite öffnen, `Gelaeut-Erfassung.apk` herunterladen und öffnen.
@@ -53,6 +75,7 @@ Die App kommt ohne Build-Schritt aus: Der Ordner `www` wird so ausgeliefert, wie
 | `www/js/spektrum.js` | FFT, Spitzensuche, Spektrum-Diagramm mit Zoom, Wellenform |
 | `www/js/aufnahme.js` | Mikrofon-Aufnahme, Erkennung von Übersteuerung, WAV-Export |
 | `www/js/app.js` | Zustand, Darstellung, Eingaben, Speichern auf dem Gerät |
+| `www/js/dropbox.js` | Abgleich der Geläute mit Dropbox (Anmeldung, Hoch-/Herunterladen, Konflikte); hier steht der App key |
 | `www/js/export.js` | Excel-, Text- und JSON-Export / -Import |
 | `www/js/klanganalyse.js` | Bereich „Klanganalyse“ der Glocke |
 | `www/js/start.js` | Startet die App (Entwurf oder Beispieldaten) |

@@ -1,12 +1,12 @@
 // Offline-Cache für die Geläut-Erfassung
 // Bei jeder Änderung VERSION hochzählen und in index.html bei allen ?v= gleich setzen.
 // Bei neuen oder umbenannten Dateien zusätzlich die Liste ergänzen.
-const VERSION = '18';
+const VERSION = '19';
 const CACHE = 'gelaeut-v' + VERSION;
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   ...['css/app.css', 'jszip.min.js', 'js/daten.js', 'js/rechnung.js', 'js/motive.js', 'js/spektrum.js', 'js/aufnahme.js',
-    'js/app.js', 'js/export.js', 'js/klanganalyse.js', 'js/start.js'].map((f) => f + '?v=' + VERSION),
+    'js/app.js', 'js/export.js', 'js/dropbox.js', 'js/klanganalyse.js', 'js/start.js'].map((f) => f + '?v=' + VERSION),
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png', 'icons/glocke.png',
 ];
 // Beim Installieren am Browser-Cache vorbei laden, damit keine veralteten Dateien abgelegt werden

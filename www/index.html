@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Geläut">
-<link rel="stylesheet" href="css/app.css?v=18">
+<link rel="stylesheet" href="css/app.css?v=19">
 </head>
 <body>
 <div class="wrap">
@@ -23,7 +23,7 @@
       <h1><img src="icons/glocke.png" alt="">Geläut-Erfassung</h1>
       <p>Glocken nach dem Factsheet erfassen, zu einem Geläut zusammenstellen, speichern und als „Glockendaten“-Excel exportieren.</p>
     </div>
-    <span class="store-pill" title="Regelmässig „Als JSON sichern“ – beim Löschen der Browserdaten gehen gespeicherte Geläute verloren.">Gespeichert auf diesem Gerät</span>
+    <span class="store-pill" id="storePill" title="Regelmässig „Als JSON sichern“ – beim Löschen der Browserdaten gehen gespeicherte Geläute verloren.">Gespeichert auf diesem Gerät</span>
   </header>
 
   <div class="layout">
@@ -34,6 +34,26 @@
       </div>
       <div class="saved-tree" id="savedList"></div>
       <div class="empty" id="savedEmpty">Noch keine Geläute gespeichert. Erfassen Sie ein Geläut und klicken Sie auf „Geläut speichern“.</div>
+      <div class="sync" aria-label="Dropbox-Abgleich">
+        <div class="sync-head"><span class="sync-dot off" id="syncDot"></span><strong>Dropbox</strong><span class="sync-state" id="syncState">nicht verbunden</span></div>
+        <div class="sync-actions">
+          <button class="btn small" id="dbxConnect" type="button">Verbinden</button>
+          <button class="btn small" id="dbxSync" type="button" hidden>Jetzt abgleichen</button>
+          <button class="btn small ghost danger" id="dbxDisconnect" type="button" hidden>Trennen</button>
+        </div>
+        <div class="sync-login" id="dbxLogin" hidden>
+          <ol>
+            <li><button class="btn small primary" id="dbxOpen" type="button">Dropbox-Anmeldung öffnen</button></li>
+            <li>Bei Dropbox anmelden, „Zulassen“ tippen und den angezeigten Code kopieren.</li>
+            <li>Code hier einfügen:</li>
+          </ol>
+          <input class="in mono" id="dbxCode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Code von Dropbox">
+          <div class="sync-actions">
+            <button class="btn small primary" id="dbxCodeOk" type="button">Verbinden</button>
+            <button class="btn small ghost" id="dbxCancel" type="button">Abbrechen</button>
+          </div>
+        </div>
+      </div>
       <div class="side-foot">
         <button class="btn small ghost" id="btnJsonOut" type="button">Als JSON sichern</button>
         <label class="btn small ghost" for="jsonIn">JSON laden</label>
@@ -271,16 +291,17 @@
 
 <!-- Reihenfolge wichtig: Daten → Rechnung → Bausteine → Oberfläche → Start.
      ?v= muss zu VERSION in sw.js passen, damit nie alte und neue Dateien gemischt werden. -->
-<script src="jszip.min.js?v=18"></script>
-<script src="js/daten.js?v=18"></script>
-<script src="js/rechnung.js?v=18"></script>
-<script src="js/motive.js?v=18"></script>
-<script src="js/spektrum.js?v=18"></script>
-<script src="js/aufnahme.js?v=18"></script>
-<script src="js/app.js?v=18"></script>
-<script src="js/export.js?v=18"></script>
-<script src="js/klanganalyse.js?v=18"></script>
-<script src="js/start.js?v=18"></script>
+<script src="jszip.min.js?v=19"></script>
+<script src="js/daten.js?v=19"></script>
+<script src="js/rechnung.js?v=19"></script>
+<script src="js/motive.js?v=19"></script>
+<script src="js/spektrum.js?v=19"></script>
+<script src="js/aufnahme.js?v=19"></script>
+<script src="js/app.js?v=19"></script>
+<script src="js/export.js?v=19"></script>
+<script src="js/dropbox.js?v=19"></script>
+<script src="js/klanganalyse.js?v=19"></script>
+<script src="js/start.js?v=19"></script>
 <script>
   // Offline-Cache für die Web-App (nicht in der Android-App)
   if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
