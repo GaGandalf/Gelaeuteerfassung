@@ -22,14 +22,15 @@
   --tip-bg: #ecebe6; --tip-fg: #121212; --wave: #6e6e6e; --sel: rgba(224, 191, 62, .16);
   --input: #161616;
   --head-bg: #0b0b0b; --head-fg: #ffffff; --head-muted: #b5b5b5;
-  --f-display: "Bahnschrift", "DIN Alternate", "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
-  --f-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* Schrift: Helvetica Neue für alles (Ersatz: Helvetica, Arial) */
+  --f-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --f-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --f-mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --r: 6px;
 }
 * { box-sizing: border-box; }
 html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; }
 .wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 40px; }
 h1, h2, h3 { font-family: var(--f-display); font-weight: 700; margin: 0; text-wrap: balance; }
 h1 { font-size: 1.9rem; letter-spacing: .01em; }

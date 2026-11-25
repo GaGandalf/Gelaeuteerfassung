@@ -1,5 +1,5 @@
 // Offline-Cache für die Geläut-Erfassung
-const CACHE = 'gelaeut-v16';
+const CACHE = 'gelaeut-v17';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'jszip.min.js',
   'js/daten.js', 'js/rechnung.js', 'js/motive.js', 'js/spektrum.js', 'js/aufnahme.js', 'js/app.js', 'js/export.js', 'js/klanganalyse.js', 'js/start.js',
