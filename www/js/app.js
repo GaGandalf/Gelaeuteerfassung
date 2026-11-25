@@ -289,22 +289,31 @@ $('ovTable').addEventListener('click', (e) => {
 });
 
 // ===== Läutemotiv des Geläuts (aus den Nominalen) =====
-function renderMotiv() {
-  const box = $('motivBox');
-  const keepOpen = box.querySelector('details')?.open;
+// Nominale aller Glocken → Motiv-Analyse; ohne = Glockennummern ohne Nominal
+function gelaeutMotiv() {
   const mit = [], ohne = [];
   state.g.bells.forEach((b, i) => {
     const idx = computeBell(b, a1()).rows.nominal.idx;
     if (idx === null) ohne.push(i + 1);
     else mit.push({ i, s: semitoneOfIdx(idx), ton: tn(baseTone(DATA.tones[idx])) });
   });
+  return { mit, ohne, r: mit.length >= 2 ? motivAnalyse(mit) : null };
+}
+// Für den Export: „Gloria auf g'“ oder '' wenn kein Motiv gefunden
+function motivText() {
+  const { r } = gelaeutMotiv();
+  return r && r.ganz ? `${r.ganz.name} auf ${r.glocken[0].ton}` : '';
+}
+function renderMotiv() {
+  const box = $('motivBox');
+  const keepOpen = box.querySelector('details')?.open;
+  const { mit, ohne, r } = gelaeutMotiv();
   const head = '<div class="eyebrow">Läutemotiv</div>';
   const ohneTxt = ohne.length ? `<p class="hint">${ohne.length === 1 ? 'Glocke' : 'Glocken'} ${ohne.join(', ')} ohne Nominal (Oktave fehlt) – nicht berücksichtigt.</p>` : '';
   if (mit.length < 2) {
     box.innerHTML = `${head}<p class="motiv-none">Für die Motiverkennung bei mindestens zwei Glocken die Oktave eintragen.</p>`;
     return;
   }
-  const r = motivAnalyse(mit);
   const g = r.glocken, lo = g[0].s, hi = g[g.length - 1].s;
   const bellNos = (list) => list.map((x) => x.i + 1).join(' · ');
   const names = (m) => (m.other.length ? `<span class="motiv-other">Auch: ${esc(m.other.join('; '))}</span>` : '')

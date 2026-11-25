@@ -102,6 +102,10 @@ async function buildXlsx() {
     }
     tcs.setAttribute('count', String(cols + 1));
   }
+  // Läutemotiv unterhalb der Tabelle (Zeile 20), nur wenn eines erkannt wurde
+  const motiv = motivText();
+  if (motiv) { setCell(20, 2, 'Läutemotiv'); setCell(20, 3, motiv); }
+
   const total = [...sstRoot.getElementsByTagNameNS(NS, 'si')].length;
   sstRoot.setAttribute('uniqueCount', String(total));
   sstRoot.setAttribute('count', String(total + 200));
@@ -133,6 +137,8 @@ const chNum = (n) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "
 function roundKg(v) { const s = v < 100 ? 5 : v < 1000 ? 10 : 50; return Math.round(v / s) * s; }
 function gelaeutText() {
   const out = [];
+  const motiv = motivText();
+  if (motiv) out.push(`*Läutemotiv*\r\n${motiv}`);
   state.g.bells.forEach((b, i) => {
     const r = computeBell(b, a1());
     const lines = [`*Glocke ${i + 1}*`];
