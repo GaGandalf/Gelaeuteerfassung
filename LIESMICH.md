@@ -56,7 +56,7 @@ Die App kommt ohne Build-Schritt aus: Der Ordner `www` wird so ausgeliefert, wie
 | `www/js/export.js` | Excel-, Text- und JSON-Export / -Import |
 | `www/js/klanganalyse.js` | Bereich „Klanganalyse“ der Glocke |
 | `www/js/start.js` | Startet die App (Entwurf oder Beispieldaten) |
-| `www/sw.js` | Offline-Cache; bei neuen Dateien die Liste ergänzen und `CACHE` hochzählen |
+| `www/sw.js` | Offline-Cache; bei jeder Änderung `VERSION` hochzählen und in `index.html` alle `?v=` gleich setzen, bei neuen Dateien die Liste ergänzen |
 
 Lokal ansehen: im Ordner `www` z. B. `python3 -m http.server` starten und `http://localhost:8000` öffnen.
 
