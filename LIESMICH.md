@@ -49,6 +49,7 @@ Die App kommt ohne Build-Schritt aus: Der Ordner `www` wird so ausgeliefert, wie
 | `www/css/app.css` | Gestaltung inkl. Dunkelmodus |
 | `www/js/daten.js` | Frequenz- und Rippentabelle sowie Excel-Vorlage aus dem Factsheet (nicht von Hand ändern) |
 | `www/js/rechnung.js` | Berechnungskern: Töne, Nominal, Abweichungen, Rippe, Gewicht (wie Excel „Töne_Rippe“) |
+| `www/js/motive.js` | Läutemotive (aus der App „Glockenmotive“) und Erkennung des Motivs aus den Nominalen |
 | `www/js/spektrum.js` | FFT, Spitzensuche, Spektrum-Diagramm mit Zoom, Wellenform |
 | `www/js/aufnahme.js` | Mikrofon-Aufnahme, Erkennung von Übersteuerung, WAV-Export |
 | `www/js/app.js` | Zustand, Darstellung, Eingaben, Speichern auf dem Gerät |

@@ -280,12 +280,67 @@ function renderOverview() {
     h += '</tr>';
   }
   $('ovTable').innerHTML = h + '</tbody>';
+  renderMotiv();
 }
 $('ovTable').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-i]'); if (!btn) return;
   selectBell(+btn.dataset.i);
   $('sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
+
+// ===== Läutemotiv des Geläuts (aus den Nominalen) =====
+// Nominale aller Glocken → Motiv-Analyse; ohne = Glockennummern ohne Nominal
+function gelaeutMotiv() {
+  const mit = [], ohne = [];
+  state.g.bells.forEach((b, i) => {
+    const idx = computeBell(b, a1()).rows.nominal.idx;
+    if (idx === null) ohne.push(i + 1);
+    else mit.push({ i, s: semitoneOfIdx(idx), ton: tn(baseTone(DATA.tones[idx])) });
+  });
+  return { mit, ohne, r: mit.length >= 2 ? motivAnalyse(mit) : null };
+}
+// Für den Export: „Gloria auf g'“ oder '' wenn kein Motiv gefunden
+function motivText() {
+  const { r } = gelaeutMotiv();
+  return r && r.ganz ? `${r.ganz.name} auf ${r.glocken[0].ton}` : '';
+}
+function renderMotiv() {
+  const box = $('motivBox');
+  const keepOpen = box.querySelector('details')?.open;
+  const { mit, ohne, r } = gelaeutMotiv();
+  const head = '<div class="eyebrow">Läutemotiv</div>';
+  const ohneTxt = ohne.length ? `<p class="hint">${ohne.length === 1 ? 'Glocke' : 'Glocken'} ${ohne.join(', ')} ohne Nominal (Oktave fehlt) – nicht berücksichtigt.</p>` : '';
+  if (mit.length < 2) {
+    box.innerHTML = `${head}<p class="motiv-none">Für die Motiverkennung bei mindestens zwei Glocken die Oktave eintragen.</p>`;
+    return;
+  }
+  const g = r.glocken, lo = g[0].s, hi = g[g.length - 1].s;
+  const bellNos = (list) => list.map((x) => x.i + 1).join(' · ');
+  const names = (m) => (m.other.length ? `<span class="motiv-other">Auch: ${esc(m.other.join('; '))}</span>` : '')
+    + (m.teil ? '<span class="motiv-other">nur als Teilgeläut gebräuchlich</span>' : '');
+  // Tonleiste: ein Feld je Halbton von der tiefsten bis zur höchsten Glocke
+  const span = hi - lo + 1;
+  let strip = '';
+  if (span <= 40) {
+    const at = new Map();
+    for (const x of g) { if (!at.has(x.s)) at.set(x.s, []); at.get(x.s).push(x); }
+    strip = `<div class="motiv-strip" style="grid-template-columns:repeat(${span},minmax(0,1fr))" aria-hidden="true">`
+      + Array.from({ length: span }, (_, k) => {
+        const xs = at.get(lo + k);
+        return xs ? `<span class="on"><i>${esc(xs[0].ton)}</i><b>${xs.map((x) => x.i + 1).join('+')}</b></span>` : '<span></span>';
+      }).join('') + '</div>';
+  }
+  const main = r.ganz
+    ? `<p class="motiv-main"><strong>${esc(r.ganz.name)}</strong> auf ${esc(g[0].ton)}</p>${names(r.ganz)}`
+    : `<p class="motiv-main motiv-none">Kein bekanntes Motiv für ${g.length === 2 ? 'beide' : 'alle ' + g.length} Glocken</p>`;
+  const tones = `<p class="motiv-tones">${g.map((x) => esc(x.ton)).join('  ')}</p>`;
+  const teile = r.teile.length
+    ? `<details class="motiv-teile"${keepOpen ? ' open' : ''}><summary>Mit Teilen des Geläuts läutbar: ${r.teile.length} ${r.teile.length === 1 ? 'Motiv' : 'Motive'}</summary><ul>`
+      + r.teile.map((t) => `<li><span><b>${esc(t.motiv.name)}</b> auf ${esc(t.glocken[0].ton)}${t.motiv.teil ? ' <small>(Teilgeläut)</small>' : ''}</span><span class="mono dim">${t.glocken.map((x) => esc(x.ton)).join(' ')}</span><span class="motiv-nos">Glocken ${bellNos(t.glocken)}</span></li>`).join('')
+      + '</ul></details>'
+    : '';
+  box.innerHTML = `<div class="motiv-head"><div>${head}${main}${tones}</div>${strip}</div>${ohneTxt}${teile}`;
+}
 
 // Seitenleiste: gespeicherte Geläute, gruppiert nach Land → Region (alphabetisch)
 function renderSaved() {

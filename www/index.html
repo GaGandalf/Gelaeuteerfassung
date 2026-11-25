@@ -5,15 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Geläut-Erfassung</title>
 <meta name="description" content="Glocken nach dem Factsheet erfassen, zu Geläuten zusammenstellen und als Glockendaten-Excel exportieren.">
-<meta name="theme-color" content="#2f6f62">
+<meta name="theme-color" content="#0b0b0b">
+<meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Geläut">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -21,7 +20,7 @@
   <header class="top">
     <div>
       <div class="eyebrow">Factsheet Glocken · Geläute</div>
-      <h1>Geläut-Erfassung</h1>
+      <h1><img src="icons/glocke.png" alt="">Geläut-Erfassung</h1>
       <p>Glocken nach dem Factsheet erfassen, zu einem Geläut zusammenstellen, speichern und als „Glockendaten“-Excel exportieren.</p>
     </div>
     <span class="store-pill" title="Regelmässig „Als JSON sichern“ – beim Löschen der Browserdaten gehen gespeicherte Geläute verloren.">Gespeichert auf diesem Gerät</span>
@@ -76,6 +75,9 @@
 
       <!-- Glocken des Geläuts: Silhouetten nach Durchmesser -->
       <div class="tabs" role="tablist" id="tabs" aria-label="Glocken im Geläut"></div>
+
+      <!-- Läutemotiv: welches bekannte Motiv die Nominale des Geläuts bilden -->
+      <section class="panel pad motiv" id="motivBox" aria-label="Läutemotiv" aria-live="polite"></section>
 
       <!-- Factsheet der gewählten Glocke -->
       <section class="panel" id="sheet" aria-label="Factsheet der Glocke">
@@ -271,6 +273,7 @@
 <script src="jszip.min.js"></script>
 <script src="js/daten.js"></script>
 <script src="js/rechnung.js"></script>
+<script src="js/motive.js"></script>
 <script src="js/spektrum.js"></script>
 <script src="js/aufnahme.js"></script>
 <script src="js/app.js"></script>
