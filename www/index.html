@@ -283,6 +283,13 @@
 <script>
   // Offline-Cache für die Web-App (nicht in der Android-App)
   if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+    // Ist schon eine ältere Version aktiv, nach dem Wechsel auf die neue einmal neu laden
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      reloaded = true; location.reload();
+    });
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 </script>
